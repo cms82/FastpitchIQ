@@ -102,36 +102,39 @@
   animation: ball-glow 1.5s ease-in-out infinite;
 }
 
-@keyframes ball-glow-circle {
-  0%,
-  100% {
-    opacity: 0.6;
-    r: 30;
+/* Use same pulse-ring approach that works great on iPhone - animate stroke-width and opacity, not radius */
+@keyframes ball-glow-pulse {
+  0% {
+    stroke-width: 2;
+    opacity: 0.8;
   }
   50% {
-    opacity: 1;
-    r: 36;
+    stroke-width: 4;
+    opacity: 0.5;
+  }
+  100% {
+    stroke-width: 6;
+    opacity: 0;
   }
 }
 
-@keyframes ball-glow-circle-mobile {
-  0%,
-  100% {
-    opacity: 0.3;
-    r: 40;
+@keyframes ball-glow-pulse-mobile {
+  0% {
+    stroke-width: 3;
+    opacity: 0.9;
   }
   50% {
-    opacity: 1;
-    r: 75;
+    stroke-width: 6;
+    opacity: 0.6;
+  }
+  100% {
+    stroke-width: 10;
+    opacity: 0;
   }
 }
 
 .animate-ball-glow-circle {
-  animation: ball-glow-circle 1.5s ease-in-out infinite;
-}
-
-.animate-ball-glow-circle-mobile {
-  animation: ball-glow-circle-mobile 1s ease-in-out infinite;
+  animation: ball-glow-pulse 1.5s ease-out infinite;
 }
 
 /* Hide mobile glow circles on desktop by default */
@@ -145,40 +148,22 @@
   visibility: hidden;
 }
 
-/* Mobile-specific styles for larger, more prominent glow */
+/* Mobile-specific styles - using same pulse-ring approach that works great on iPhone */
 @media (max-width: 768px) {
   .animate-ball-glow-circle {
-    animation: ball-glow-circle-mobile 1s ease-in-out infinite !important;
+    animation: ball-glow-pulse-mobile 1.5s ease-out infinite !important;
   }
   
   .animate-ball-glow {
-    filter: drop-shadow(0 0 12px #fcea2b) drop-shadow(0 0 24px #fcea2b) drop-shadow(0 0 36px #fcea2b) drop-shadow(0 0 48px #fcea2b) drop-shadow(0 0 60px #fcea2b) !important;
+    filter: drop-shadow(0 0 12px #fcea2b) drop-shadow(0 0 24px #fcea2b) drop-shadow(0 0 36px #fcea2b) drop-shadow(0 0 48px #fcea2b) !important;
   }
   
-  /* Much larger stroke widths on mobile for maximum visibility */
-  .ball-glow-outer {
-    stroke-width: 8 !important;
-  }
-  
-  .ball-glow-inner {
-    stroke-width: 6 !important;
-  }
-  
-  /* Show and style mobile glow circles on mobile only - make them very visible */
+  /* Show mobile glow circles - animation handles stroke-width and opacity */
   .ball-glow-mobile {
-    opacity: 0.9 !important;
     visibility: visible !important;
-    stroke-width: 7 !important;
   }
   
   .ball-glow-extra {
-    opacity: 0.5 !important;
     visibility: visible !important;
-    stroke-width: 6 !important;
-  }
-  
-  /* Increase base opacity values on mobile for better starting visibility */
-  .ball-marker-glow circle {
-    opacity: 0.9 !important;
   }
 }
