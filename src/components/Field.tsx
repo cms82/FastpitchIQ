@@ -289,53 +289,17 @@ export default function Field({ scenario, highlightedRole, showFeedback }: Field
           })}
 
           {/* Ball marker - using softball.svg - rendered after positions so it appears on top */}
-          <g className="animate-ball-glow ball-marker-glow" transform={`translate(${ballPosition.x + ballPositionData.offsetX}, ${ballPosition.y + ballPositionData.offsetY}) scale(0.434375)`}>
-            {/* Multiple glow circles using same pulse-ring approach as "YOU" label - works great on iPhone */}
+          <g key="ball-marker" transform={`translate(${ballPosition.x + ballPositionData.offsetX}, ${ballPosition.y + ballPositionData.offsetY}) scale(0.434375)`}>
+            {/* Single pulse ring for ball - same as position marker, works great on iPhone */}
             <circle
               cx="36"
               cy="36"
-              r="32"
+              r="36"
               fill="none"
               stroke="#fcea2b"
-              strokeWidth="2"
-              opacity="0.8"
-              className="animate-ball-glow-circle ball-glow-outer"
-              style={{ transformOrigin: 'center' }}
-            />
-            <circle
-              cx="36"
-              cy="36"
-              r="28"
-              fill="none"
-              stroke="#fcea2b"
-              strokeWidth="2"
-              opacity="0.8"
-              className="animate-ball-glow-circle ball-glow-inner"
-              style={{ transformOrigin: 'center' }}
-            />
-            {/* Additional mobile-only glow circle for maximum visibility */}
-            <circle
-              cx="36"
-              cy="36"
-              r="45"
-              fill="none"
-              stroke="#fcea2b"
-              strokeWidth="3"
-              opacity="0.9"
-              className="animate-ball-glow-circle ball-glow-mobile"
-              style={{ transformOrigin: 'center' }}
-            />
-            {/* Extra large outer glow for mobile only */}
-            <circle
-              cx="36"
-              cy="36"
-              r="55"
-              fill="none"
-              stroke="#fcea2b"
-              strokeWidth="3"
-              opacity="0.9"
-              className="animate-ball-glow-circle ball-glow-mobile ball-glow-extra"
-              style={{ transformOrigin: 'center' }}
+              strokeWidth="2.5"
+              className="animate-pulse-ring"
+              style={{ transformOrigin: 'center', stroke: '#fcea2b' }}
             />
             <image
               href="/assets/softball.svg"
