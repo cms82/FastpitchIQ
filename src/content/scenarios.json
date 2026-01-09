@@ -1,0 +1,91 @@
+[
+  {
+    "id": "single-lf-no-runners",
+    "title": "Single to Left Field — No Runners",
+    "category": "cut_relay",
+    "situation": {
+      "runners": {
+        "on1": false,
+        "on2": false,
+        "on3": false
+      },
+      "ballZone": "LF"
+    },
+    "roles": {
+      "P": {
+        "primaryIntent": "BACKUP",
+        "target": "CIRCLE",
+        "explanation": "Pitcher backs up behind the circle/rubber to prevent extra bases.",
+        "distractorPoolHigh": ["HOLD", "COVER", "CUTOFF"],
+        "distractorPoolLow": ["FIELD"]
+      },
+      "C": {
+        "primaryIntent": "HOLD",
+        "target": "HOME",
+        "explanation": "Catcher maintains home position to protect the plate.",
+        "distractorPoolHigh": ["BACKUP", "COVER", "CUTOFF"],
+        "distractorPoolLow": ["FIELD"]
+      },
+      "1B": {
+        "primaryIntent": "COVER",
+        "target": "1B",
+        "explanation": "First baseman watches runner touch 1B then moves to cover 1B for potential play.",
+        "distractorPoolHigh": ["HOLD", "BACKUP", "CUTOFF"],
+        "distractorPoolLow": ["FIELD"]
+      },
+      "2B": {
+        "primaryIntent": "COVER",
+        "target": "2B",
+        "explanation": "Second baseman covers 2B for possible play at second.",
+        "distractorPoolHigh": ["CUTOFF", "BACKUP", "HOLD"],
+        "distractorPoolLow": ["FIELD"]
+      },
+      "SS": {
+        "primaryIntent": "CUTOFF",
+        "target": "2B",
+        "explanation": "Shortstop becomes cutoff aligned with 2B to control the throw and stop extra bases.",
+        "distractorPoolHigh": ["COVER", "BACKUP", "HOLD"],
+        "distractorPoolLow": ["FIELD"]
+      },
+      "3B": {
+        "primaryIntent": "COVER",
+        "target": "3B",
+        "explanation": "Third baseman covers 3B to prevent runner from advancing.",
+        "distractorPoolHigh": ["HOLD", "BACKUP", "CUTOFF"],
+        "distractorPoolLow": ["FIELD"]
+      },
+      "LF": {
+        "primaryIntent": "FIELD",
+        "fielderAction": "THROW_THROUGH_CUTOFF",
+        "target": "SS/2B",
+        "explanation": "Left fielder fields securely and throws through cutoff to 2B for possible play.",
+        "distractorPoolHigh": ["COVER", "BACKUP", "HOLD"],
+        "distractorPoolLow": ["CUTOFF"]
+      },
+      "CF": {
+        "primaryIntent": "BACKUP",
+        "target": "LF",
+        "explanation": "Center fielder moves toward LF to back up the play.",
+        "distractorPoolHigh": ["COVER", "CUTOFF", "HOLD"],
+        "distractorPoolLow": ["FIELD"]
+      },
+      "RF": {
+        "primaryIntent": "BACKUP",
+        "target": "2B",
+        "explanation": "Right fielder backs up in line with throw to 2B.",
+        "distractorPoolHigh": ["COVER", "CUTOFF", "HOLD"],
+        "distractorPoolLow": ["FIELD"]
+      }
+    },
+    "roleGroups": {
+      "ballSide": ["LF", "CF"],
+      "infieldCore": ["SS", "2B"],
+      "coverage": ["1B", "3B"],
+      "backups": ["RF", "P", "C"]
+    },
+    "promptPlan": {
+      "recommendedRoles": ["LF", "SS", "2B", "RF", "P"],
+      "difficulty": 2
+    }
+  }
+]
