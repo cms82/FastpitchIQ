@@ -7,4 +7,15 @@ export default defineConfig({
   define: {
     'import.meta.env.DEV': JSON.stringify(process.env.NODE_ENV !== 'production'),
   },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        // Ensure proper MIME types
+        assetFileNames: 'assets/[name].[ext]',
+      },
+    },
+  },
+  publicDir: 'public',
 })
