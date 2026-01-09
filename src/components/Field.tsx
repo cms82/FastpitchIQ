@@ -1,5 +1,4 @@
 import { Scenario, Position } from '../types';
-import { POSITIONS } from '../constants';
 import { useState, useEffect } from 'react';
 
 interface FieldProps {

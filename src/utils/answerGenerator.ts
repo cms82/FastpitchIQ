@@ -2,7 +2,6 @@ import {
   Prompt,
   AnswerOption,
   QuestionType,
-  Position,
   Scenario,
 } from '../types';
 import {

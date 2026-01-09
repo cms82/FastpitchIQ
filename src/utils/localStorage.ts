@@ -135,7 +135,6 @@ export function updateWeakSpots(
   correct: boolean
 ): void {
   const weakSpots = getWeakSpots();
-  const key = `${role}:${questionType}:${intent}`;
   let spot = weakSpots.find(
     (s) => s.role === role && s.questionType === questionType && s.intent === intent
   );

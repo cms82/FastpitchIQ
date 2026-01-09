@@ -1,5 +1,9 @@
 import { PrimaryIntent, FielderAction, Position, BallZone } from '../constants';
 
+// Re-export types for convenience
+export type { Position, BallZone };
+export { PrimaryIntent, FielderAction };
+
 export type QuestionType = 'primary' | 'fielderAction';
 
 export type AnswerOption = PrimaryIntent | FielderAction;

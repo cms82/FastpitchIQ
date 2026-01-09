@@ -4,7 +4,6 @@ import { getTopWeakSpots } from './localStorage';
 
 const PROMPTS_PER_ROUND = 6;
 const PRIMARY_WEIGHT = 0.8;
-const SECONDARY_WEIGHT = 0.2;
 const BACKUP_TARGET_PERCENT = 0.7;
 
 interface PromptCandidate {
@@ -44,10 +43,10 @@ function generateMyPositionsPrompts(
   const availableRoles: Position[] = [];
 
   // Collect available roles
-  if (scenario.roles[primaryPosition]) {
+  if (primaryPosition && scenario.roles[primaryPosition as Position]) {
     availableRoles.push(primaryPosition);
   }
-  if (secondaryPosition && scenario.roles[secondaryPosition] && secondaryPosition !== primaryPosition) {
+  if (secondaryPosition && scenario.roles[secondaryPosition as Position] && secondaryPosition !== primaryPosition) {
     availableRoles.push(secondaryPosition);
   }
 
@@ -107,10 +106,10 @@ function generateWholeFieldPrompts(scenario: Scenario): Prompt[] {
   // Fill required groups first
   for (const group of requiredGroups) {
     const available = group.roles.filter(
-      (role) => scenario.roles[role] && !usedRoles.has(role)
+      (role) => scenario.roles[role as Position] && !usedRoles.has(role)
     );
     if (available.length > 0) {
-      const selected = available[Math.floor(Math.random() * available.length)];
+      const selected = available[Math.floor(Math.random() * available.length)] as Position;
       usedRoles.add(selected);
       const roleDef = scenario.roles[selected];
 
@@ -129,12 +128,12 @@ function generateWholeFieldPrompts(scenario: Scenario): Prompt[] {
   const shouldIncludeBackup = Math.random() < BACKUP_TARGET_PERCENT;
   if (shouldIncludeBackup && prompts.length < PROMPTS_PER_ROUND) {
     const backupRoles = scenario.roleGroups.backups.filter(
-      (role) => scenario.roles[role] && !usedRoles.has(role)
+      (role) => scenario.roles[role as Position] && !usedRoles.has(role)
     );
     if (backupRoles.length > 0) {
       // Prefer least recently asked
-      backupRoles.sort((a, b) => getLastAskedAt(a) - getLastAskedAt(b));
-      const selected = backupRoles[0];
+      backupRoles.sort((a, b) => getLastAskedAt(a as Position) - getLastAskedAt(b as Position));
+      const selected = backupRoles[0] as Position;
       usedRoles.add(selected);
       const roleDef = scenario.roles[selected];
 
@@ -154,7 +153,7 @@ function generateWholeFieldPrompts(scenario: Scenario): Prompt[] {
   const candidates: PromptCandidate[] = [];
 
   for (const position of allPositions) {
-    if (usedRoles.has(position) || !scenario.roles[position]) {
+    if (usedRoles.has(position) || !scenario.roles[position as Position]) {
       continue;
     }
 
@@ -179,7 +178,7 @@ function generateWholeFieldPrompts(scenario: Scenario): Prompt[] {
   // Fill remaining prompts
   while (prompts.length < PROMPTS_PER_ROUND && candidates.length > 0) {
     const candidate = candidates.shift()!;
-    const roleDef = scenario.roles[candidate.role];
+    const roleDef = scenario.roles[candidate.role as Position];
 
     // Check if we can use fielderAction for this fielder
     let questionType: QuestionType = 'primary';

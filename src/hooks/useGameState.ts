@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Scenario, Prompt, GameMode, GameState, AnswerOption } from '../types';
+import { Scenario, GameMode, GameState, AnswerOption } from '../types';
 import { generatePrompts } from '../utils/promptGenerator';
 import { generateAnswers, createRoundState } from '../utils/answerGenerator';
 import {
@@ -85,10 +85,8 @@ export function useGameState(
     const currentPrompt = gameState.prompts[gameState.currentPromptIndex];
     if (!currentPrompt) return;
 
-    const startTime = TIMER_DURATION;
+    // Mark as incorrect - use full timer duration for timeout
     const timeMs = TIMER_DURATION;
-
-    // Mark as incorrect
     const newStats = {
       ...gameState.roundStats,
       incorrect: gameState.roundStats.incorrect + 1,

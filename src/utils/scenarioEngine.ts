@@ -1,4 +1,5 @@
-import { Scenario, BallZone } from '../types';
+import { Scenario, BallZone, RoleDefinition } from '../types';
+import { Position } from '../constants';
 import { ballZoneCoordinates } from '../constants';
 import scenariosData from '../content/scenarios.json';
 
@@ -36,7 +37,7 @@ function validateScenario(scenario: any): scenario is Scenario {
   }
 
   // Validate each role has required fields and sufficient distractors
-  for (const [position, role] of Object.entries(scenario.roles)) {
+  for (const [position, role] of Object.entries(scenario.roles) as [Position, RoleDefinition][]) {
     if (!role.primaryIntent) {
       throw new Error(`Scenario ${scenario.id}: role ${position} missing primaryIntent`);
     }
@@ -87,7 +88,7 @@ export function loadScenarios(): Scenario[] {
         validateScenario(scenario);
         validated.push(scenario);
       } catch (error) {
-        if (import.meta.env.DEV) {
+        if (process.env.NODE_ENV !== 'production') {
           throw error;
         } else {
           console.error('Content validation error:', error);
@@ -103,7 +104,7 @@ export function loadScenarios(): Scenario[] {
     loadedScenarios = validated;
     return validated;
   } catch (error) {
-    if (import.meta.env.DEV) {
+    if (process.env.NODE_ENV !== 'production') {
       throw error;
     } else {
       // In prod, show error screen (handled by component)

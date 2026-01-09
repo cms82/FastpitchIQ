@@ -1,6 +1,5 @@
 import { ReactNode } from 'react';
 import { cn } from '../lib/utils';
-import { Target, Globe, BarChart3 } from 'lucide-react';
 
 interface PrimaryActionCardProps {
   title: string;

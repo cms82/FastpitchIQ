@@ -15,7 +15,6 @@ export default function FeedbackOverlay({
   prompt,
   scenario,
   correct,
-  selectedAnswer,
   onContinue,
 }: FeedbackOverlayProps) {
   const roleDef = scenario.roles[prompt.role];

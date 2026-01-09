@@ -17,7 +17,7 @@ interface SituationHeaderProps {
 export default function SituationHeader({
   scenario,
   mode,
-  learningMode,
+  learningMode: _learningMode,
   role,
   questionType,
   progress,
