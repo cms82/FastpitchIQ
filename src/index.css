@@ -114,6 +114,51 @@
   }
 }
 
+@keyframes ball-glow-circle-mobile {
+  0%,
+  100% {
+    opacity: 0.7;
+    r: 45;
+  }
+  50% {
+    opacity: 1;
+    r: 60;
+  }
+}
+
 .animate-ball-glow-circle {
   animation: ball-glow-circle 1.5s ease-in-out infinite;
+}
+
+/* Hide mobile glow circle on desktop by default */
+.ball-glow-mobile {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Mobile-specific styles for larger, more prominent glow */
+@media (max-width: 768px) {
+  .animate-ball-glow-circle {
+    animation: ball-glow-circle-mobile 1.5s ease-in-out infinite;
+  }
+  
+  .animate-ball-glow {
+    filter: drop-shadow(0 0 8px #fcea2b) drop-shadow(0 0 16px #fcea2b) drop-shadow(0 0 24px #fcea2b) drop-shadow(0 0 32px #fcea2b) !important;
+  }
+  
+  /* Larger stroke widths on mobile */
+  .ball-glow-outer {
+    stroke-width: 5 !important;
+  }
+  
+  .ball-glow-inner {
+    stroke-width: 4 !important;
+  }
+  
+  /* Show and style mobile glow circle on mobile only */
+  .ball-glow-mobile {
+    opacity: 0.7 !important;
+    visibility: visible !important;
+    stroke-width: 4 !important;
+  }
 }
