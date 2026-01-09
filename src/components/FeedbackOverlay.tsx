@@ -19,7 +19,38 @@ export default function FeedbackOverlay({
 }: FeedbackOverlayProps) {
   const roleDef = scenario.roles[prompt.role];
   const correctLabel = intentLabels[prompt.correctAnswer];
-  const targetText = roleDef.target ? ` → ${roleDef.target}` : '';
+  
+  // Format target for display - convert technical values to readable text
+  const formatTarget = (target: string): string => {
+    if (!target) return '';
+    
+    // Handle special target values
+    if (target === 'THROW_TO_2B') return 'the throw to 2B';
+    if (target === 'THROW_TO_1B') return 'the throw to 1B';
+    if (target === 'THROW_TO_3B') return 'the throw to 3B';
+    if (target === 'THROW_TO_HOME') return 'the throw to home';
+    if (target === 'CIRCLE') return 'the circle';
+    if (target === 'BALL') return 'the ball';
+    
+    // Base positions are already readable (1B, 2B, 3B, HOME, etc.)
+    return target.toLowerCase();
+  };
+  
+  const targetText = roleDef.target ? ` → ${formatTarget(roleDef.target)}` : '';
+
+  // Format steps for display
+  const formatStep = (step: { type: string; target?: string; via?: string; style?: string }) => {
+    if (step.type === 'FIELD') {
+      return 'Field the ball';
+    } else if (step.type === 'THROW') {
+      let text = `Throw to ${step.target || ''}`;
+      if (step.via) {
+        text += ` via ${step.via}`;
+      }
+      return text;
+    }
+    return `${step.type}${step.target ? ` to ${step.target}` : ''}`;
+  };
 
   return (
     <div
@@ -54,6 +85,21 @@ export default function FeedbackOverlay({
           <span className="font-semibold">{correctLabel}</span>
           {targetText && <span className="text-muted-foreground">{targetText}</span>}
         </p>
+
+        {/* Steps - displayed prominently when present */}
+        {roleDef.steps && roleDef.steps.length > 0 && (
+          <div className="mb-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+            <p className="text-xs font-semibold text-primary mb-2 uppercase tracking-wide">Steps</p>
+            <div className="space-y-1.5">
+              {roleDef.steps.map((step, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-primary w-5 flex-shrink-0">{index + 1}.</span>
+                  <span className="text-sm font-semibold text-card-foreground">{formatStep(step)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Explanation */}
         <p className="text-sm text-muted-foreground text-center mb-6">{roleDef.explanation}</p>

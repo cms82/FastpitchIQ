@@ -26,7 +26,7 @@ export default function SituationHeader({
   showTimer = true,
 }: SituationHeaderProps) {
   const situationText = formatSituation(scenario);
-  const modeLabel = mode === 'my_positions' ? 'My Positions' : 'Whole Field';
+  const modeLabel = mode === 'my_positions' ? 'One Position' : 'All Positions';
   const progressPercent = timerRemaining && timerTotal ? (timerRemaining / timerTotal) * 100 : 100;
 
   return (

@@ -9,7 +9,7 @@ interface SituationBannerProps {
 
 export default function SituationBanner({ scenario, mode, learningMode }: SituationBannerProps) {
   const situationText = formatSituation(scenario);
-  const modeLabel = mode === 'my_positions' ? 'Quiz - My Positions' : 'Quiz - All Positions';
+  const modeLabel = mode === 'my_positions' ? 'Quiz - One Position' : 'Quiz - All Positions';
 
   return (
     <div className="situation-banner">

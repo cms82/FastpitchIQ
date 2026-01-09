@@ -9,70 +9,75 @@
         "on2": false,
         "on3": false
       },
-      "ballZone": "LF"
+      "ballZone": "LF",
+      "goal": "Keep the batter-runner from taking 2B."
     },
     "roles": {
       "P": {
         "primaryIntent": "BACKUP",
         "target": "CIRCLE",
-        "explanation": "Pitcher backs up behind the circle/rubber to prevent extra bases.",
+        "explanation": "Pitcher backs up behind the circle/rubber to stop an overthrow and keep the ball in the infield.",
         "distractorPoolHigh": ["HOLD", "COVER", "CUTOFF"],
         "distractorPoolLow": ["FIELD"]
       },
       "C": {
         "primaryIntent": "HOLD",
         "target": "HOME",
-        "explanation": "Catcher maintains home position to protect the plate.",
+        "explanation": "Catcher holds home and directs traffic (calling the base/coverage).",
         "distractorPoolHigh": ["BACKUP", "COVER", "CUTOFF"],
         "distractorPoolLow": ["FIELD"]
       },
       "1B": {
         "primaryIntent": "COVER",
         "target": "1B",
-        "explanation": "First baseman watches runner touch 1B then moves to cover 1B for potential play.",
+        "explanation": "First baseman holds/receives at 1B and confirms the batter-runner touches the bag.",
         "distractorPoolHigh": ["HOLD", "BACKUP", "CUTOFF"],
         "distractorPoolLow": ["FIELD"]
       },
       "2B": {
         "primaryIntent": "COVER",
         "target": "2B",
-        "explanation": "Second baseman covers 2B for possible play at second.",
+        "explanation": "Second baseman covers 2B for a potential tag/play on the batter-runner.",
         "distractorPoolHigh": ["CUTOFF", "BACKUP", "HOLD"],
         "distractorPoolLow": ["FIELD"]
       },
       "SS": {
         "primaryIntent": "CUTOFF",
         "target": "2B",
-        "explanation": "Shortstop becomes cutoff aligned with 2B to control the throw and stop extra bases.",
+        "explanation": "Shortstop becomes the cutoff on the LF → 2B line to control the throw and prevent extra bases.",
         "distractorPoolHigh": ["COVER", "BACKUP", "HOLD"],
         "distractorPoolLow": ["FIELD"]
       },
       "3B": {
         "primaryIntent": "COVER",
         "target": "3B",
-        "explanation": "Third baseman covers 3B to prevent runner from advancing.",
+        "explanation": "Third baseman covers 3B in case the batter-runner takes an aggressive turn and a secondary play develops.",
         "distractorPoolHigh": ["HOLD", "BACKUP", "CUTOFF"],
         "distractorPoolLow": ["FIELD"]
       },
       "LF": {
         "primaryIntent": "FIELD",
+        "target": "BALL",
+        "steps": [
+          { "type": "FIELD", "target": "BALL" },
+          { "type": "THROW", "target": "2B", "via": "SS", "style": "THROW_THROUGH_CUTOFF" }
+        ],
         "fielderAction": "THROW_THROUGH_CUTOFF",
-        "target": "SS/2B",
-        "explanation": "Left fielder fields securely and throws through cutoff to 2B for possible play.",
+        "explanation": "Left fielder fields securely, then throws through the SS cutoff toward 2B to prevent the batter-runner from taking extra bases.",
         "distractorPoolHigh": ["COVER", "BACKUP", "HOLD"],
         "distractorPoolLow": ["CUTOFF"]
       },
       "CF": {
         "primaryIntent": "BACKUP",
         "target": "LF",
-        "explanation": "Center fielder moves toward LF to back up the play.",
+        "explanation": "Center fielder backs up LF to stop any miss or overthrow and keep the ball from reaching the fence.",
         "distractorPoolHigh": ["COVER", "CUTOFF", "HOLD"],
         "distractorPoolLow": ["FIELD"]
       },
       "RF": {
         "primaryIntent": "BACKUP",
-        "target": "2B",
-        "explanation": "Right fielder backs up in line with throw to 2B.",
+        "target": "THROW_TO_2B",
+        "explanation": "Right fielder backs up the throw to 2B (getting depth behind 2B/right-center) to stop an overthrow.",
         "distractorPoolHigh": ["COVER", "CUTOFF", "HOLD"],
         "distractorPoolLow": ["FIELD"]
       }

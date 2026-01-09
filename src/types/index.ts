@@ -19,12 +19,19 @@ export interface Runners {
 export interface Situation {
   runners: Runners;
   ballZone: BallZone;
+  goal?: string; // Optional goal description for the play
 }
 
 export interface RoleDefinition {
   primaryIntent: PrimaryIntent;
   fielderAction?: FielderAction; // Optional; only for roles that field the ball
   target?: string; // Used only for feedback text
+  steps?: Array<{ // Optional sequence of actions for the role
+    type: string;
+    target?: string;
+    via?: string;
+    style?: string;
+  }>;
   explanation: string; // One sentence max
   distractorPoolHigh: (PrimaryIntent | FielderAction)[]; // Plausible distractors
   distractorPoolLow: (PrimaryIntent | FielderAction)[]; // Less plausible but still softball-related

@@ -15,6 +15,7 @@ export default function GameScreen() {
   const navigate = useNavigate();
   const practiceWeakSpots = searchParams.get('weakSpots') === 'true';
   const learningMode = searchParams.get('learning') === 'true';
+  const selectedPosition = searchParams.get('position') || null;
   const [scenario] = useState(() => {
     try {
       return getRandomScenario();
@@ -33,9 +34,15 @@ export default function GameScreen() {
       </div>
     );
   }
+
+  // Validate that position is provided for my_positions mode
+  if (mode === 'my_positions' && !selectedPosition) {
+    navigate('/');
+    return null;
+  }
   
   const { gameState, currentPrompt, showFeedback, roundComplete, handleAnswer, advanceToNext } =
-    useGameState(scenario, mode || 'whole_field', practiceWeakSpots, learningMode);
+    useGameState(scenario, mode || 'whole_field', practiceWeakSpots, learningMode, selectedPosition);
 
   if (!mode || (mode !== 'my_positions' && mode !== 'whole_field')) {
     navigate('/');
@@ -97,7 +104,12 @@ export default function GameScreen() {
                 <button
                   onClick={() => {
                     const newMode = mode === 'my_positions' ? 'whole_field' : 'my_positions';
-                    navigate(`/game/${newMode}${learningMode ? '?learning=true' : ''}`);
+                    if (newMode === 'whole_field') {
+                      navigate(`/game/${newMode}${learningMode ? '?learning=true' : ''}`);
+                    } else {
+                      // For my_positions, go back to home to select position
+                      navigate('/');
+                    }
                     window.location.reload();
                   }}
                   className="py-3 rounded-xl bg-secondary text-secondary-foreground font-medium transition-all active:scale-[0.98]"

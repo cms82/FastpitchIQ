@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Scenario, GameMode, GameState, AnswerOption } from '../types';
 import { generatePrompts } from '../utils/promptGenerator';
+import { Position } from '../types';
 import { generateAnswers, createRoundState } from '../utils/answerGenerator';
 import {
   updatePositionStats,
@@ -8,7 +9,6 @@ import {
   updateOverallStats,
   updateWeakSpots,
 } from '../utils/localStorage';
-import { getPreferences } from '../utils/localStorage';
 
 const TIMER_DURATION = 10000; // 10 seconds
 
@@ -16,7 +16,8 @@ export function useGameState(
   scenario: Scenario,
   mode: GameMode,
   practiceWeakSpots: boolean = false,
-  learningMode: boolean = false
+  learningMode: boolean = false,
+  selectedPosition?: string | null
 ) {
   const [gameState, setGameState] = useState<GameState>({
     currentScenario: scenario,
@@ -37,15 +38,15 @@ export function useGameState(
   const [showFeedback, setShowFeedback] = useState(false);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [roundComplete, setRoundComplete] = useState(false);
+  const [promptStartTime, setPromptStartTime] = useState(() => Date.now());
 
   // Initialize prompts
   useEffect(() => {
-    const prefs = getPreferences();
+    const position = mode === 'my_positions' && selectedPosition ? (selectedPosition as Position) : null;
     const prompts = generatePrompts(
       scenario,
       mode,
-      prefs.selectedPrimaryPosition,
-      prefs.selectedSecondaryPosition,
+      position,
       practiceWeakSpots
     );
 
@@ -59,7 +60,54 @@ export function useGameState(
       timerActive: !learningMode,
       timerRemaining: TIMER_DURATION,
     }));
-  }, [scenario, mode, practiceWeakSpots, learningMode]);
+    setPromptStartTime(Date.now());
+  }, [scenario, mode, practiceWeakSpots, learningMode, selectedPosition]);
+
+  const handleTimeout = useCallback(() => {
+    if (learningMode) return; // No timeout in learning mode
+    setGameState((prev) => {
+      const currentPrompt = prev.prompts[prev.currentPromptIndex];
+      if (!currentPrompt) return prev;
+
+      // Mark as incorrect - use actual elapsed time or timer duration, whichever is greater
+      const timeMs = Math.max(TIMER_DURATION, Date.now() - promptStartTime);
+      const newStats = {
+        ...prev.roundStats,
+        incorrect: prev.roundStats.incorrect + 1,
+        totalTime: prev.roundStats.totalTime + timeMs,
+        responses: [
+          ...prev.roundStats.responses,
+          {
+            prompt: currentPrompt,
+            selected: null,
+            correct: false,
+            timeMs,
+          },
+        ],
+      };
+
+      // Update stats
+      updatePositionStats(currentPrompt.role, false, timeMs);
+      updateScenarioStats(scenario.id, false);
+      updateOverallStats(false, currentStreak);
+      setCurrentStreak(0);
+      updateWeakSpots(
+        currentPrompt.role,
+        currentPrompt.questionType,
+        currentPrompt.correctAnswer,
+        false
+      );
+
+      setShowFeedback(true);
+
+      return {
+        ...prev,
+        timerActive: false,
+        timerRemaining: 0,
+        roundStats: newStats,
+      };
+    });
+  }, [scenario, currentStreak, learningMode, promptStartTime]);
 
   // Timer effect
   useEffect(() => {
@@ -78,51 +126,7 @@ export function useGameState(
     }, 100);
 
     return () => clearInterval(interval);
-  }, [learningMode, gameState.timerActive, showFeedback, roundComplete]);
-
-  const handleTimeout = useCallback(() => {
-    if (learningMode) return; // No timeout in learning mode
-    const currentPrompt = gameState.prompts[gameState.currentPromptIndex];
-    if (!currentPrompt) return;
-
-    // Mark as incorrect - use full timer duration for timeout
-    const timeMs = TIMER_DURATION;
-    const newStats = {
-      ...gameState.roundStats,
-      incorrect: gameState.roundStats.incorrect + 1,
-      totalTime: gameState.roundStats.totalTime + timeMs,
-      responses: [
-        ...gameState.roundStats.responses,
-        {
-          prompt: currentPrompt,
-          selected: null,
-          correct: false,
-          timeMs,
-        },
-      ],
-    };
-
-    // Update stats
-    updatePositionStats(currentPrompt.role, false, timeMs);
-    updateScenarioStats(scenario.id, false);
-    updateOverallStats(false, currentStreak);
-    setCurrentStreak(0);
-    updateWeakSpots(
-      currentPrompt.role,
-      currentPrompt.questionType,
-      currentPrompt.correctAnswer,
-      false
-    );
-
-    setGameState((prev) => ({
-      ...prev,
-      timerActive: false,
-      timerRemaining: 0,
-      roundStats: newStats,
-    }));
-
-    setShowFeedback(true);
-  }, [gameState, scenario, currentStreak, learningMode]);
+  }, [learningMode, gameState.timerActive, showFeedback, roundComplete, handleTimeout]);
 
   const handleAnswer = useCallback(
     (option: AnswerOption, index: number) => {
@@ -131,7 +135,8 @@ export function useGameState(
       const currentPrompt = gameState.prompts[gameState.currentPromptIndex];
       if (!currentPrompt) return;
 
-      const timeMs = learningMode ? 0 : TIMER_DURATION - gameState.timerRemaining;
+      // Calculate actual elapsed time from when prompt was shown
+      const timeMs = Date.now() - promptStartTime;
       const correct = index === currentPrompt.correctIndex;
 
       const newStats = {
@@ -176,7 +181,7 @@ export function useGameState(
 
       setShowFeedback(true);
     },
-    [gameState, scenario, currentStreak, showFeedback, learningMode]
+    [gameState, scenario, currentStreak, showFeedback, learningMode, promptStartTime]
   );
 
   const advanceToNext = useCallback(() => {
@@ -189,6 +194,7 @@ export function useGameState(
     }
 
     setShowFeedback(false);
+    setPromptStartTime(Date.now()); // Reset start time for next prompt
     setGameState((prev) => ({
       ...prev,
       currentPromptIndex: nextIndex,

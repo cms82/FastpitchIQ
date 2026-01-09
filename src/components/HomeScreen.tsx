@@ -1,34 +1,34 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getPreferences } from '../utils/localStorage';
 import PrimaryActionCard from './PrimaryActionCard';
 import { Target, Globe, BarChart3 } from 'lucide-react';
+import PositionSelectionModal from './PositionSelectionModal';
+import { Position } from '../types';
 
 export default function HomeScreen() {
   const navigate = useNavigate();
-  const prefs = getPreferences();
   const [learningMode, setLearningMode] = useState(true);
+  const [showPositionModal, setShowPositionModal] = useState(false);
 
-  const handleMyPositions = () => {
-    if (!prefs.selectedPrimaryPosition) {
-      navigate('/setup');
-    } else {
-      const url = learningMode ? '/game/my_positions?learning=true' : '/game/my_positions';
-      navigate(url);
-    }
+  const handleOnePosition = () => {
+    setShowPositionModal(true);
   };
 
-  const handleWholeField = () => {
+  const handlePositionSelected = (position: Position) => {
+    setShowPositionModal(false);
+    const url = learningMode 
+      ? `/game/my_positions?position=${position}&learning=true` 
+      : `/game/my_positions?position=${position}`;
+    navigate(url);
+  };
+
+  const handleAllPositions = () => {
     const url = learningMode ? '/game/whole_field?learning=true' : '/game/whole_field';
     navigate(url);
   };
 
   const handleProgress = () => {
     navigate('/progress');
-  };
-
-  const handleEditPositions = () => {
-    navigate('/setup');
   };
 
   return (
@@ -47,16 +47,16 @@ export default function HomeScreen() {
           {/* Main actions */}
           <div className="space-y-3">
             <PrimaryActionCard
-              title="Quiz – My Positions"
-              description="Practice your primary & secondary spots"
+              title="Quiz – One Position"
+              description="Practice a single position at a time"
               icon={<Target className="w-6 h-6" />}
-              onClick={handleMyPositions}
+              onClick={handleOnePosition}
             />
             <PrimaryActionCard
-              title="Quiz – Whole Field"
+              title="Quiz – All Positions"
               description="Play all 9 positions randomly"
               icon={<Globe className="w-6 h-6" />}
-              onClick={handleWholeField}
+              onClick={handleAllPositions}
             />
             <PrimaryActionCard
               title="Review My Progress"
@@ -80,22 +80,12 @@ export default function HomeScreen() {
             </label>
           </div>
 
-          {/* Positions info */}
-          {prefs.selectedPrimaryPosition && (
-            <div className="text-center space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Your positions: <span className="font-semibold text-card-foreground">
-                  {prefs.selectedPrimaryPosition}
-                  {prefs.selectedSecondaryPosition && `, ${prefs.selectedSecondaryPosition}`}
-                </span>
-              </p>
-              <button
-                onClick={handleEditPositions}
-                className="text-sm text-primary hover:underline"
-              >
-                Edit Positions
-              </button>
-            </div>
+          {/* Position Selection Modal */}
+          {showPositionModal && (
+            <PositionSelectionModal
+              onSelect={handlePositionSelected}
+              onClose={() => setShowPositionModal(false)}
+            />
           )}
         </div>
       </div>

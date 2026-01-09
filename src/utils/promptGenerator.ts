@@ -3,7 +3,6 @@ import { getLastAskedAt } from './localStorage';
 import { getTopWeakSpots } from './localStorage';
 
 const PROMPTS_PER_ROUND = 6;
-const PRIMARY_WEIGHT = 0.8;
 const BACKUP_TARGET_PERCENT = 0.7;
 
 interface PromptCandidate {
@@ -15,8 +14,7 @@ interface PromptCandidate {
 export function generatePrompts(
   scenario: Scenario,
   mode: GameMode,
-  primaryPosition?: Position | null,
-  secondaryPosition?: Position | null,
+  selectedPosition?: Position | null,
   practiceWeakSpots: boolean = false
 ): Prompt[] {
   if (practiceWeakSpots) {
@@ -24,55 +22,42 @@ export function generatePrompts(
   }
 
   if (mode === 'my_positions') {
-    return generateMyPositionsPrompts(scenario, primaryPosition, secondaryPosition);
+    return generateOnePositionPrompts(scenario, selectedPosition);
   } else {
     return generateWholeFieldPrompts(scenario);
   }
 }
 
-function generateMyPositionsPrompts(
+function generateOnePositionPrompts(
   scenario: Scenario,
-  primaryPosition?: Position | null,
-  secondaryPosition?: Position | null
+  selectedPosition?: Position | null
 ): Prompt[] {
-  if (!primaryPosition) {
-    throw new Error('Primary position required for My Positions mode');
+  if (!selectedPosition) {
+    throw new Error('Position required for One Position mode');
+  }
+
+  if (!scenario.roles[selectedPosition as Position]) {
+    throw new Error(`Selected position ${selectedPosition} is not available in this scenario`);
   }
 
   const prompts: Prompt[] = [];
-  const availableRoles: Position[] = [];
+  const roleDef = scenario.roles[selectedPosition as Position];
 
-  // Collect available roles
-  if (primaryPosition && scenario.roles[primaryPosition as Position]) {
-    availableRoles.push(primaryPosition);
-  }
-  if (secondaryPosition && scenario.roles[secondaryPosition as Position] && secondaryPosition !== primaryPosition) {
-    availableRoles.push(secondaryPosition);
-  }
-
-  if (availableRoles.length === 0) {
-    throw new Error('No available roles for selected positions');
-  }
-
-  // Generate 6 prompts with weighted selection
+  // Generate 6 prompts all for the same position
+  // Mix of primary intent and fielderAction (if available)
   let fielderActionUsed = false;
+  const canUseFielderAction = roleDef.fielderAction && roleDef.primaryIntent === 'FIELD';
 
   for (let i = 0; i < PROMPTS_PER_ROUND; i++) {
-    // Weighted selection: 80% primary, 20% secondary
-    const usePrimary = Math.random() < PRIMARY_WEIGHT || availableRoles.length === 1;
-    const selectedRole = usePrimary ? availableRoles[0] : availableRoles[1];
-
-    const roleDef = scenario.roles[selectedRole];
-
     // Decide question type
     let questionType: QuestionType = 'primary';
 
     // For fielders, can use fielderAction (at most 1 per round)
+    // Use fielderAction for one prompt if available
     if (
+      canUseFielderAction &&
       !fielderActionUsed &&
-      roleDef.fielderAction &&
-      roleDef.primaryIntent === 'FIELD' &&
-      Math.random() < 0.3 // 30% chance to use fielderAction
+      (i === Math.floor(PROMPTS_PER_ROUND / 2) || Math.random() < 0.3)
     ) {
       questionType = 'fielderAction';
       fielderActionUsed = true;
@@ -80,7 +65,7 @@ function generateMyPositionsPrompts(
 
     prompts.push({
       scenarioId: scenario.id,
-      role: selectedRole,
+      role: selectedPosition,
       questionType,
       correctAnswer: questionType === 'primary' ? roleDef.primaryIntent : roleDef.fielderAction!,
       options: [], // Will be filled by answerGenerator
