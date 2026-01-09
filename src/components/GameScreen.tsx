@@ -15,7 +15,25 @@ export default function GameScreen() {
   const navigate = useNavigate();
   const practiceWeakSpots = searchParams.get('weakSpots') === 'true';
   const learningMode = searchParams.get('learning') === 'true';
-  const [scenario] = useState(() => getRandomScenario());
+  const [scenario] = useState(() => {
+    try {
+      return getRandomScenario();
+    } catch (error) {
+      console.error('Failed to load scenario:', error);
+      return null;
+    }
+  });
+  
+  if (!scenario) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">Failed to load game. Please refresh the page.</p>
+        </div>
+      </div>
+    );
+  }
+  
   const { gameState, currentPrompt, showFeedback, roundComplete, handleAnswer, advanceToNext } =
     useGameState(scenario, mode || 'whole_field', practiceWeakSpots, learningMode);
 

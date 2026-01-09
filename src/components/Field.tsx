@@ -36,12 +36,33 @@ export default function Field({ scenario, highlightedRole, showFeedback }: Field
   const viewBox = '24.654 81.888 480.692 413.582';
   const [useEpsSvg, setUseEpsSvg] = useState(true); // Default to true since we have the SVG
 
-  // Check if converted SVG exists
+  // Check if converted SVG exists (with timeout for mobile)
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
     const img = new Image();
-    img.onload = () => setUseEpsSvg(true);
-    img.onerror = () => setUseEpsSvg(false);
+    
+    const cleanup = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+    
+    img.onload = () => {
+      cleanup();
+      setUseEpsSvg(true);
+    };
+    
+    img.onerror = () => {
+      cleanup();
+      setUseEpsSvg(false);
+    };
+    
+    // Set a timeout to prevent infinite loading on mobile
+    timeoutId = setTimeout(() => {
+      setUseEpsSvg(false);
+    }, 5000); // 5 second timeout
+    
     img.src = '/assets/softballfield.svg';
+    
+    return cleanup;
   }, []);
 
   // Convert ball zone to coordinates (matching SVG viewBox)
