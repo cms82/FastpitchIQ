@@ -45,24 +45,57 @@ export default function Field({ scenario, highlightedRole, showFeedback }: Field
   }, []);
 
   // Convert ball zone to coordinates (matching SVG viewBox)
+  // Maps play types (category + ballZone) to ball positions on the field
+  // The position includes the base position plus any fine-tuning offsets
   const getBallPosition = () => {
     const ballZone = scenario.situation.ballZone;
-    // Map ball zones to SVG coordinates
-    const ballZoneMap: Record<string, { x: number; y: number }> = {
-      LF: { x: 150, y: 180 },
-      CF: { x: 265, y: 120 },
-      RF: { x: 380, y: 180 },
-      LF_LINE: { x: 100, y: 250 },
-      RF_LINE: { x: 430, y: 250 },
-      LF_GAP: { x: 200, y: 160 },
-      RF_GAP: { x: 330, y: 160 },
-      INFIELD_LEFT: { x: 220, y: 300 },
-      INFIELD_RIGHT: { x: 310, y: 300 },
+    const category = scenario.category;
+    
+    // Create a play type key (e.g., "cut_relay_LF", "bunt_INFIELD_LEFT")
+    const playType = `${category}_${ballZone}`;
+    
+    // Ball position mapping for different play types
+    // Each entry contains the final position (base + offset) for the ball marker
+    // Format: { x: finalX, y: finalY, offsetX: offset for transform, offsetY: offset for transform }
+    // The offset values are used in the transform to center the ball marker
+    const ballPositionMap: Record<string, { x: number; y: number; offsetX: number; offsetY: number }> = {
+      // Cut/Relay plays - Singles
+      'cut_relay_LF': { x: 150, y: 180, offsetX: -5.625, offsetY: 24.375 }, // Single to LF - LOCKED IN
+      'cut_relay_CF': { x: 265, y: 120, offsetX: 0, offsetY: 0 }, // Single to CF - PLACEHOLDER
+      'cut_relay_RF': { x: 380, y: 180, offsetX: 0, offsetY: 0 }, // Single to RF - PLACEHOLDER
+      
+      // Cut/Relay plays - To the fence
+      'cut_relay_LF_FENCE': { x: 100, y: 150, offsetX: 0, offsetY: 0 }, // LF to fence - PLACEHOLDER
+      'cut_relay_CF_FENCE': { x: 265, y: 80, offsetX: 0, offsetY: 0 }, // CF to fence - PLACEHOLDER
+      'cut_relay_RF_FENCE': { x: 430, y: 150, offsetX: 0, offsetY: 0 }, // RF to fence - PLACEHOLDER
+      
+      // Bunt plays
+      'bunt_INFIELD_LEFT': { x: 220, y: 300, offsetX: 0, offsetY: 0 }, // Bunt left - PLACEHOLDER
+      'bunt_INFIELD_RIGHT': { x: 310, y: 300, offsetX: 0, offsetY: 0 }, // Bunt right - PLACEHOLDER
+      'bunt_INFIELD_CENTER': { x: 265, y: 320, offsetX: 0, offsetY: 0 }, // Bunt center - PLACEHOLDER
+      
+      // Other zones (fallback to generic positions)
+      'cut_relay_LF_LINE': { x: 100, y: 250, offsetX: 0, offsetY: 0 },
+      'cut_relay_RF_LINE': { x: 430, y: 250, offsetX: 0, offsetY: 0 },
+      'cut_relay_LF_GAP': { x: 200, y: 160, offsetX: 0, offsetY: 0 },
+      'cut_relay_RF_GAP': { x: 330, y: 160, offsetX: 0, offsetY: 0 },
+      'cut_relay_INFIELD_LEFT': { x: 220, y: 300, offsetX: 0, offsetY: 0 },
+      'cut_relay_INFIELD_RIGHT': { x: 310, y: 300, offsetX: 0, offsetY: 0 },
     };
-    return ballZoneMap[ballZone] || { x: 265, y: 250 };
+    
+    // Get the position for this play type, or use a default
+    const position = ballPositionMap[playType] || { 
+      x: 265, 
+      y: 250, 
+      offsetX: 0, 
+      offsetY: 0 
+    };
+    
+    return position;
   };
 
-  const ballPosition = getBallPosition();
+  const ballPositionData = getBallPosition();
+  const ballPosition = { x: ballPositionData.x, y: ballPositionData.y };
 
   return (
     <div className="w-screen md:w-full md:max-w-md md:mx-auto -mx-4 md:mx-auto overflow-hidden mb-2 bg-white">
@@ -235,7 +268,7 @@ export default function Field({ scenario, highlightedRole, showFeedback }: Field
           })}
 
           {/* Ball marker - using softball.svg - rendered after positions so it appears on top */}
-          <g className="animate-ball-glow" transform={`translate(${ballPosition.x - 20}, ${ballPosition.y - 20}) scale(0.556)`}>
+          <g className="animate-ball-glow" transform={`translate(${ballPosition.x + ballPositionData.offsetX}, ${ballPosition.y + ballPositionData.offsetY}) scale(0.434375)`}>
             {/* Multiple glow circles for mobile compatibility - more prominent */}
             <circle
               cx="36"
