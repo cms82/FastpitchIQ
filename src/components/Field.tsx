@@ -290,7 +290,7 @@ export default function Field({ scenario, highlightedRole, showFeedback }: Field
 
           {/* Ball marker - using softball.svg - rendered after positions so it appears on top */}
           <g className="animate-ball-glow ball-marker-glow" transform={`translate(${ballPosition.x + ballPositionData.offsetX}, ${ballPosition.y + ballPositionData.offsetY}) scale(0.434375)`}>
-            {/* Multiple glow circles for mobile compatibility - more prominent on mobile */}
+            {/* Multiple glow circles for mobile compatibility - very prominent on mobile */}
             <circle
               cx="36"
               cy="36"
@@ -311,16 +311,27 @@ export default function Field({ scenario, highlightedRole, showFeedback }: Field
               opacity="0.8"
               className="animate-ball-glow-circle ball-glow-inner"
             />
-            {/* Additional mobile-only glow circle for extra visibility */}
+            {/* Additional mobile-only glow circle for maximum visibility */}
             <circle
               cx="36"
               cy="36"
-              r="38"
+              r="45"
               fill="none"
               stroke="#fcea2b"
               strokeWidth="3"
-              opacity="0.5"
+              opacity="0.7"
               className="animate-ball-glow-circle ball-glow-mobile"
+            />
+            {/* Extra large outer glow for mobile only */}
+            <circle
+              cx="36"
+              cy="36"
+              r="55"
+              fill="none"
+              stroke="#fcea2b"
+              strokeWidth="4"
+              opacity="0.4"
+              className="animate-ball-glow-circle ball-glow-mobile ball-glow-extra"
             />
             <image
               href="/assets/softball.svg"

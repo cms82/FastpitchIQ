@@ -40,13 +40,13 @@ export default function AnswerButtons({
                 disabled={disabled}
                 className={cn(
                   "min-h-[56px] px-4 py-3 rounded-xl font-semibold text-base",
-                  "bg-card border-2 text-card-foreground",
+                  "bg-primary text-primary-foreground border-2 border-primary",
                   "transition-all duration-150",
-                  !disabled && "border-border hover:border-primary/50 hover:bg-primary/5 cursor-pointer",
-                  !disabled && isSelected && "border-primary bg-primary/10",
-                  disabled && "opacity-50 cursor-not-allowed border-border",
-                  showCorrectAnswer && isCorrect && "bg-success/20 border-success text-success",
-                  showCorrectAnswer && isWrong && "bg-destructive/20 border-destructive text-destructive",
+                  !disabled && "hover:opacity-90 active:opacity-80 cursor-pointer",
+                  !disabled && isSelected && "ring-2 ring-offset-2 ring-primary ring-offset-background",
+                  disabled && "opacity-50 cursor-not-allowed",
+                  showCorrectAnswer && isCorrect && "bg-success/20 border-success text-success ring-0",
+                  showCorrectAnswer && isWrong && "bg-destructive/20 border-destructive text-destructive ring-0",
                 )}
               >
                 {intentLabels[option]}
