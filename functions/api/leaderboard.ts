@@ -15,17 +15,6 @@ interface PlayerStats {
   };
 }
 
-interface RoundStats {
-  correct: number;
-  incorrect: number;
-  totalTime: number;
-  bestStreak: number;
-}
-
-interface SyncRequest {
-  playerId: number;
-  roundStats: RoundStats;
-}
 
 // Player configuration (hardcoded for simplicity in Worker)
 const PLAYERS: Array<{ id: number; name: string; number: number }> = [
@@ -94,109 +83,6 @@ export const onRequestGet = async (context: { env: Env }) => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
-};
-
-// POST /api/leaderboard/sync - Update player stats with incremental merge
-export const onRequestPost = async (context: { request: Request; env: Env }) => {
-  const { request, env } = context;
-  const url = new URL(request.url);
-  const path = url.pathname;
-  
-  // Handle POST /api/leaderboard/sync
-  if (path === '/api/leaderboard/sync') {
-    try {
-      const body: SyncRequest = await request.json();
-      const { playerId, roundStats } = body;
-      
-      if (!playerId || !roundStats) {
-        return new Response(JSON.stringify({ error: 'Missing playerId or roundStats' }), {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-        });
-      }
-      
-      const key = `player:${playerId}`;
-      
-      // Fetch existing stats from KV
-      const existingValue = await env.LEADERBOARD_KV.get(key);
-      let existingStats: PlayerStats | null = null;
-      
-      if (existingValue) {
-        try {
-          existingStats = JSON.parse(existingValue);
-        } catch (e) {
-          console.error(`Failed to parse existing stats for player ${playerId}:`, e);
-        }
-      }
-      
-      // Get player info from config
-      const player = PLAYERS.find(p => p.id === playerId);
-      if (!player) {
-        return new Response(JSON.stringify({ error: 'Invalid player ID' }), {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-        });
-      }
-      
-      // Merge stats incrementally
-      const newAttempts = roundStats.correct + roundStats.incorrect;
-      const newCorrect = roundStats.correct;
-      const newTotalTime = roundStats.totalTime;
-      
-      if (existingStats) {
-        // Merge with existing
-        existingStats.stats.totalAttempts += newAttempts;
-        existingStats.stats.totalCorrect += newCorrect;
-        existingStats.stats.totalTime += newTotalTime;
-        existingStats.stats.bestStreak = Math.max(existingStats.stats.bestStreak, roundStats.bestStreak);
-        existingStats.stats.lastUpdated = Date.now();
-        
-        const updatedValue = JSON.stringify(existingStats);
-        await env.LEADERBOARD_KV.put(key, updatedValue);
-      } else {
-        // Create new player stats
-        const newStats: PlayerStats = {
-          playerId: player.id,
-          name: player.name,
-          number: player.number,
-          stats: {
-            totalAttempts: newAttempts,
-            totalCorrect: newCorrect,
-            bestStreak: roundStats.bestStreak,
-            totalTime: newTotalTime,
-            lastUpdated: Date.now(),
-          },
-        };
-        await env.LEADERBOARD_KV.put(key, JSON.stringify(newStats));
-      }
-      
-      return new Response(JSON.stringify({ success: true }), {
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
-        },
-      });
-    } catch (error) {
-      console.error('Error syncing stats:', error);
-      return new Response(JSON.stringify({ error: 'Failed to sync stats' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-  }
-  
-  return new Response(JSON.stringify({ error: 'Not found' }), {
-    status: 404,
-    headers: { 'Content-Type': 'application/json' },
-  });
 };
 
 // Handle OPTIONS for CORS
