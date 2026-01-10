@@ -6,15 +6,21 @@ import { PLAYERS } from '../config/players';
 // For now, use empty string to use relative URLs (works in both prod and dev when deployed)
 const API_BASE_URL = '';
 
-// Fetch player stats from KV
+// Fetch player stats from KV with timeout
 export async function fetchPlayerStats(playerId: number): Promise<PlayerStats | null> {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    
     const response = await fetch(`${API_BASE_URL}/api/leaderboard/${playerId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.error(`Failed to fetch player stats: ${response.status}`);
@@ -24,7 +30,11 @@ export async function fetchPlayerStats(playerId: number): Promise<PlayerStats | 
     const stats: PlayerStats = await response.json();
     return stats;
   } catch (error) {
-    console.warn('Failed to fetch player stats from KV:', error);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.warn('Fetch player stats timed out');
+    } else {
+      console.warn('Failed to fetch player stats from KV:', error);
+    }
     return null; // Fail silently, app works with localStorage only
   }
 }
@@ -63,13 +73,19 @@ export async function syncStatsToLeaderboard(playerId: number, roundStats: Round
       },
     };
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
     const response = await fetch(`${API_BASE_URL}/api/leaderboard/sync`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(syncPayload),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.error(`Failed to sync stats: ${response.status}`);
@@ -84,7 +100,11 @@ export async function syncStatsToLeaderboard(playerId: number, roundStats: Round
     
     return result.success === true;
   } catch (error) {
-    console.warn('Failed to sync stats to leaderboard:', error);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.warn('Sync stats timed out');
+    } else {
+      console.warn('Failed to sync stats to leaderboard:', error);
+    }
     return false; // Fail silently, stats stay in localStorage
   }
 }
@@ -92,12 +112,18 @@ export async function syncStatsToLeaderboard(playerId: number, roundStats: Round
 // Fetch all player stats for leaderboard display
 export async function fetchLeaderboard(): Promise<PlayerStats[]> {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
     const response = await fetch(`${API_BASE_URL}/api/leaderboard`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       console.error(`Failed to fetch leaderboard: ${response.status}`);
@@ -128,7 +154,11 @@ export async function fetchLeaderboard(): Promise<PlayerStats[]> {
     
     return allPlayers;
   } catch (error) {
-    console.warn('Failed to fetch leaderboard:', error);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.warn('Fetch leaderboard timed out');
+    } else {
+      console.warn('Failed to fetch leaderboard:', error);
+    }
     // Return empty array, leaderboard will show no data
     return [];
   }

@@ -14,17 +14,17 @@ export default function HomeScreen() {
   const [showPositionModal, setShowPositionModal] = useState(false);
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   
-  // Check for player selection on mount
+  // Check for player selection on mount (non-blocking, optional)
   useEffect(() => {
     const playerId = getPlayerId();
-    if (!playerId) {
-      setShowPlayerModal(true);
-    } else {
-      // Initialize stats from KV for cross-device sync
+    if (playerId) {
+      // Initialize stats from KV for cross-device sync (non-blocking)
       initializePlayerStats(playerId).catch(err => {
         console.warn('Failed to initialize player stats:', err);
       });
     }
+    // Don't auto-show player modal - let users start playing without selecting
+    // They can access leaderboard later if they want
   }, []);
 
   const handleOnePosition = () => {
@@ -41,7 +41,7 @@ export default function HomeScreen() {
 
   const handlePlayerSelected = (playerId: number) => {
     setShowPlayerModal(false);
-    // Initialize stats from KV after player selection
+    // Initialize stats from KV after player selection (non-blocking)
     initializePlayerStats(playerId).catch(err => {
       console.warn('Failed to initialize player stats:', err);
     });
@@ -129,11 +129,7 @@ export default function HomeScreen() {
             <PlayerSelectModal
               onSelect={handlePlayerSelected}
               onClose={() => {
-                // Don't allow closing without selecting (required for leaderboard)
-                const playerId = getPlayerId();
-                if (!playerId) {
-                  return; // Keep modal open
-                }
+                // Allow closing without selecting (player selection is optional for game, required for leaderboard)
                 setShowPlayerModal(false);
               }}
             />
