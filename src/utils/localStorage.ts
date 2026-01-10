@@ -254,6 +254,15 @@ export function resetAll(): void {
   }
 }
 
+// Reset player ID (allows re-selection)
+export function resetPlayerId(): void {
+  try {
+    safeRemoveItem(STORAGE_KEYS.PLAYER_ID);
+  } catch (error) {
+    console.error('Failed to reset player ID:', error);
+  }
+}
+
 // Player ID storage
 export function getPlayerId(): number | null {
   try {

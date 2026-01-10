@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchLeaderboard } from '../utils/leaderboard';
 import { PlayerStats } from '../types';
+import PlayerDisplay from './PlayerDisplay';
 import { Trophy, RefreshCw } from 'lucide-react';
 
 export default function LeaderboardScreen() {
@@ -75,23 +76,28 @@ export default function LeaderboardScreen() {
       <div className="mx-auto max-w-md px-4 pb-safe">
         <div className="py-6 space-y-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <button 
-              onClick={() => navigate('/')} 
-              className="p-2 -ml-2 rounded-lg hover:bg-secondary transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h1 className="text-2xl font-bold text-card-foreground">Leaderboard</h1>
-            <button
-              onClick={loadLeaderboard}
-              disabled={loading}
-              className="p-2 rounded-lg hover:bg-secondary transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`w-5 h-5 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
-            </button>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => navigate('/')} 
+                className="p-2 -ml-2 rounded-lg hover:bg-secondary transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <h1 className="text-2xl font-bold text-card-foreground">Leaderboard</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <PlayerDisplay />
+              <button
+                onClick={loadLeaderboard}
+                disabled={loading}
+                className="p-2 rounded-lg hover:bg-secondary transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-5 h-5 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           </div>
 
           {/* Loading state */}

@@ -6,6 +6,7 @@ import Field from './Field';
 import AnswerButtons from './AnswerButtons';
 import FeedbackOverlay from './FeedbackOverlay';
 import SituationHeader from './SituationHeader';
+import PlayerDisplay from './PlayerDisplay';
 import { GameMode } from '../types';
 import { Trophy, Clock, AlertTriangle } from 'lucide-react';
 import { getPlayerId } from '../utils/localStorage';
@@ -235,6 +236,11 @@ export default function GameScreen() {
     <div className="min-h-screen bg-white">
       <div className="mx-auto max-w-md px-4 pb-36">
         <div className="py-6 space-y-6">
+        {/* Player Display */}
+        <div className="flex justify-end">
+          <PlayerDisplay />
+        </div>
+        
         {/* Situation Header */}
         <SituationHeader
           scenario={scenario}

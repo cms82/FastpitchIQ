@@ -31,7 +31,7 @@ const PLAYERS: Array<{ id: number; name: string; number: number }> = [
 ];
 
 // GET /api/leaderboard/:playerId - Fetch single player stats
-export const onRequestGet = async (context: { env: Env; params: { playerId: string } }) => {
+export const onRequestGet = async (context: { request: Request; env: Env; params: { playerId: string } }) => {
   const { env, params } = context;
   
   try {
@@ -100,4 +100,61 @@ export const onRequestGet = async (context: { env: Env; params: { playerId: stri
       },
     });
   }
+};
+
+// DELETE /api/leaderboard/:playerId - Clear player stats
+export const onRequestDelete = async (context: { request: Request; env: Env; params: { playerId: string } }) => {
+  const { env, params } = context;
+  
+  try {
+    const playerId = parseInt(params.playerId, 10);
+    
+    if (isNaN(playerId) || playerId < 1 || playerId > 11) {
+      return new Response(JSON.stringify({ error: 'Invalid player ID' }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        },
+      });
+    }
+    
+    const key = `player:${playerId}`;
+    
+    // Delete the player stats from KV
+    await env.LEADERBOARD_KV.delete(key);
+    
+    return new Response(JSON.stringify({ success: true, message: 'Player stats cleared' }), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
+    });
+  } catch (error) {
+    console.error('Error clearing player stats:', error);
+    return new Response(JSON.stringify({ error: 'Failed to clear player stats' }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
+    });
+  }
+};
+
+// Handle OPTIONS for CORS
+export const onRequestOptions = async () => {
+  return new Response(null, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
 };

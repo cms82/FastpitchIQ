@@ -4,6 +4,7 @@ import SetupScreen from './components/SetupScreen';
 import GameScreen from './components/GameScreen';
 import ProgressScreen from './components/ProgressScreen';
 import LeaderboardScreen from './components/LeaderboardScreen';
+import AdminScreen from './components/AdminScreen';
 
 function App() {
   return (
@@ -14,6 +15,8 @@ function App() {
         <Route path="/game/:mode" element={<GameScreen />} />
         <Route path="/progress" element={<ProgressScreen />} />
         <Route path="/leaderboard" element={<LeaderboardScreen />} />
+        <Route path="/admin" element={<AdminScreen />} />
+        <Route path="/admin/player/:playerId" element={<AdminScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

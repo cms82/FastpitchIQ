@@ -23,10 +23,28 @@ const POSITION_LABELS: Record<Position, string> = {
 
 export default function PositionSelectionModal({ onSelect, onClose }: PositionSelectionModalProps) {
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   const handleConfirm = () => {
-    if (selectedPosition) {
-      onSelect(selectedPosition);
+    if (selectedPosition && !isNavigating) {
+      // Prevent multiple clicks/navigations
+      setIsNavigating(true);
+      
+      // Save position before resetting state
+      const position = selectedPosition;
+      
+      // Immediately close the modal first - this triggers onClose
+      // This is critical on mobile to ensure modal disappears before navigation
+      onClose();
+      
+      // Reset state
+      setSelectedPosition(null);
+      
+      // Then call onSelect to trigger navigation
+      // Use a small delay on mobile to ensure modal has time to unmount
+      setTimeout(() => {
+        onSelect(position);
+      }, 50);
     }
   };
 
@@ -34,10 +52,17 @@ export default function PositionSelectionModal({ onSelect, onClose }: PositionSe
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/50 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={onClose}
+      onTouchStart={(e) => {
+        // Prevent backdrop clicks during modal interaction
+        if (e.target === e.currentTarget) {
+          e.preventDefault();
+        }
+      }}
     >
       <div
         className="bg-card rounded-2xl shadow-xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
@@ -89,10 +114,10 @@ export default function PositionSelectionModal({ onSelect, onClose }: PositionSe
         {/* Confirm Button */}
         <button
           onClick={handleConfirm}
-          disabled={!selectedPosition}
-          className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!selectedPosition || isNavigating}
+          className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
         >
-          Start Quiz
+          {isNavigating ? 'Starting...' : 'Start Quiz'}
         </button>
       </div>
     </div>

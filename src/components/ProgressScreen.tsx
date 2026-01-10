@@ -5,6 +5,7 @@ import { POSITIONS } from '../constants';
 import { intentLabels } from '../constants';
 import { resetProgress, getPreferences } from '../utils/localStorage';
 import ConfirmationDialog from './ConfirmationDialog';
+import PlayerDisplay from './PlayerDisplay';
 import { Target, Clock, Flame, AlertTriangle } from 'lucide-react';
 
 export default function ProgressScreen() {
@@ -39,13 +40,16 @@ export default function ProgressScreen() {
       <div className="mx-auto max-w-md px-4 pb-safe">
         <div className="py-6 space-y-6">
           {/* Header */}
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/')} className="p-2 -ml-2 rounded-lg hover:bg-secondary transition-colors">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h1 className="text-2xl font-bold text-card-foreground">Your Progress</h1>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button onClick={() => navigate('/')} className="p-2 -ml-2 rounded-lg hover:bg-secondary transition-colors">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <h1 className="text-2xl font-bold text-card-foreground">Your Progress</h1>
+            </div>
+            <PlayerDisplay />
           </div>
 
           {/* Overall stats */}

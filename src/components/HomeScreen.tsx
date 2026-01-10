@@ -25,7 +25,7 @@ export default function HomeScreen() {
   
   // Check for player selection on mount - show modal if no player selected
   useEffect(() => {
-    // Only show modal if we're on the home route
+    // Only show modal if we're on the home route and no player is selected
     if (location.pathname !== '/') return;
     
     const playerId = getPlayerId();
@@ -45,7 +45,7 @@ export default function HomeScreen() {
   };
 
   const handlePositionSelected = (position: Position) => {
-    // Immediately close all modals before navigation
+    // Ensure modals are closed (redundant but safe)
     setShowPositionModal(false);
     setShowPlayerModal(false);
     
@@ -55,7 +55,7 @@ export default function HomeScreen() {
       ? `/game/my_positions?position=${encodedPosition}&learning=true` 
       : `/game/my_positions?position=${encodedPosition}`;
     
-    // Use replace to avoid back button issues, navigate immediately
+    // Navigate - modal should already be closed by onClose call in modal
     navigate(url, { replace: false });
   };
 
