@@ -16,10 +16,18 @@ export default function HomeScreen() {
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   
   // Reset modals when location changes (navigating away)
+  // Use a ref to track if we're already navigating to prevent race conditions
+  const [isNavigatingAway, setIsNavigatingAway] = useState(false);
+  
   useEffect(() => {
     if (location.pathname !== '/') {
+      // Close all modals when navigating away
       setShowPositionModal(false);
       setShowPlayerModal(false);
+      setIsNavigatingAway(false);
+    } else {
+      // Reset navigation flag when back on home
+      setIsNavigatingAway(false);
     }
   }, [location.pathname]);
   
@@ -41,30 +49,61 @@ export default function HomeScreen() {
   }, [location.pathname]);
 
   const handleOnePosition = () => {
-    setShowPositionModal(true);
+    // Only open modal if we're on the home route and no other modal is open
+    if (location.pathname === '/' && !showPlayerModal) {
+      setShowPositionModal(true);
+    }
   };
 
   const handlePositionSelected = (position: Position) => {
+    // Prevent multiple navigation attempts
+    if (isNavigatingAway) {
+      console.log('Navigation already in progress, ignoring duplicate call');
+      return;
+    }
+
+    // Validate position first
+    if (!position) {
+      console.error('Position selection: Invalid position');
+      return;
+    }
+
+    // Mark as navigating to prevent duplicate calls
+    setIsNavigatingAway(true);
+
     // URL encode the position parameter
     const encodedPosition = encodeURIComponent(position);
     const url = learningMode 
       ? `/game/my_positions?position=${encodedPosition}&learning=true` 
       : `/game/my_positions?position=${encodedPosition}`;
     
-    // Close modals first
+    // Close modals synchronously first - prevent any race conditions
     setShowPositionModal(false);
     setShowPlayerModal(false);
     
-    // Detect mobile devices and use window.location for more reliable navigation
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    
-    if (isMobile) {
-      // Use window.location for mobile - more reliable than React Router navigate on mobile Safari
-      window.location.href = url;
-    } else {
-      // Use React Router for desktop
-      navigate(url, { replace: false });
-    }
+    // Use requestAnimationFrame to ensure modal state update completes before navigation
+    // This prevents React from trying to render the modal while navigating
+    requestAnimationFrame(() => {
+      // Add a small delay to ensure modal close animation has started
+      setTimeout(() => {
+        try {
+          // Use React Router navigate for all devices - more reliable with state management
+          navigate(url, { replace: false });
+        } catch (error) {
+          console.error('Navigation error:', error);
+          // Reset navigation flag on error
+          setIsNavigatingAway(false);
+          // Fallback: Use window.location if React Router fails
+          try {
+            window.location.href = url;
+          } catch (fallbackError) {
+            console.error('Fallback navigation also failed:', fallbackError);
+            // Last resort: reload the page to home
+            window.location.href = '/';
+          }
+        }
+      }, 50); // Small delay to ensure modal close completes
+    });
   };
 
   const handlePlayerSelected = (playerId: number) => {

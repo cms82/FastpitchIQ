@@ -26,33 +26,47 @@ export default function PositionSelectionModal({ onSelect, onClose }: PositionSe
   const [isNavigating, setIsNavigating] = useState(false);
 
   const handleConfirm = () => {
-    if (selectedPosition && !isNavigating) {
-      // Prevent multiple clicks/navigations
-      setIsNavigating(true);
-      
-      // Save position before resetting state
-      const position = selectedPosition;
-      
-      // Reset state immediately
-      setSelectedPosition(null);
-      
-      // Call onSelect to trigger navigation
-      // The parent component will close the modal via setShowPositionModal(false)
-      // and the useEffect watching location.pathname will also ensure it closes
-      onSelect(position);
+    // Prevent multiple clicks/navigations
+    if (!selectedPosition || isNavigating) {
+      return;
+    }
+
+    // Mark as navigating immediately to prevent duplicate clicks
+    setIsNavigating(true);
+    
+    // Save position before resetting state
+    const position = selectedPosition;
+    
+    // Reset selection state (but keep isNavigating true until navigation completes)
+    setSelectedPosition(null);
+    
+    // Close modal immediately to prevent any UI glitches
+    // Use a small delay to ensure the close animation starts before navigation
+    requestAnimationFrame(() => {
+      // Call onSelect to trigger navigation in parent
+      // Parent will handle closing the modal and navigation
+      try {
+        onSelect(position);
+      } catch (error) {
+        console.error('Error in onSelect:', error);
+        // Reset state if navigation fails
+        setIsNavigating(false);
+      }
+    });
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent | React.TouchEvent) => {
+    // Only close if clicking the backdrop itself, not child elements
+    if (e.target === e.currentTarget && !isNavigating) {
+      onClose();
     }
   };
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/50 backdrop-blur-sm animate-in fade-in duration-200"
-      onClick={onClose}
-      onTouchStart={(e) => {
-        // Prevent backdrop clicks during modal interaction
-        if (e.target === e.currentTarget) {
-          e.preventDefault();
-        }
-      }}
+      onClick={handleBackdropClick}
+      onTouchStart={handleBackdropClick}
     >
       <div
         className="bg-card rounded-2xl shadow-xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200"
@@ -111,8 +125,9 @@ export default function PositionSelectionModal({ onSelect, onClose }: PositionSe
           onClick={handleConfirm}
           disabled={!selectedPosition || isNavigating}
           className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+          type="button"
         >
-          {isNavigating ? 'Starting...' : 'Start Quiz'}
+          {isNavigating ? 'Starting...' : selectedPosition ? `Start Quiz as ${POSITION_LABELS[selectedPosition]}` : 'Select a Position'}
         </button>
       </div>
     </div>

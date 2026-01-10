@@ -37,31 +37,55 @@ export default function GameScreen() {
   
   // Validate routing and redirect if needed (using useEffect to avoid render-time navigation)
   useEffect(() => {
-    // Give it a moment for URL params to be parsed on mobile
+    // Use a longer delay to ensure URL params are fully parsed, especially on mobile
     const timeoutId = setTimeout(() => {
       // Only validate after component has mounted and params are available
       if (!mode) {
-        // Mode not yet parsed, wait
+        // Mode not yet parsed, but don't redirect yet - might still be loading
+        console.log('GameScreen: Waiting for mode parameter...');
         return;
       }
 
       // Validate mode
       if (mode !== 'my_positions' && mode !== 'whole_field') {
-        console.log('Invalid mode:', mode);
+        console.error('GameScreen: Invalid mode:', mode);
         navigate('/', { replace: true });
         return;
       }
 
       // For my_positions mode, check if position is provided
       if (mode === 'my_positions') {
-        const pos = searchParams.get('position');
-        if (!pos) {
-          console.log('Missing position for my_positions mode. URL params:', Array.from(searchParams.entries()));
-          navigate('/', { replace: true });
-          return;
+        // Try multiple ways to get position
+        const posFromSearchParams = searchParams.get('position');
+        const posFromSelected = selectedPosition;
+        const position = posFromSearchParams || posFromSelected;
+        
+        if (!position) {
+          // Double-check URL search params one more time
+          const currentUrl = new URL(window.location.href);
+          const posFromUrl = currentUrl.searchParams.get('position');
+          
+          if (!posFromUrl) {
+            console.error('GameScreen: Missing position for my_positions mode. Search params:', Array.from(searchParams.entries()), 'Current URL:', window.location.href);
+            // Only redirect if we're absolutely sure the position is missing
+            navigate('/', { replace: true });
+            return;
+          } else {
+            // Position exists in URL but wasn't parsed yet - don't redirect, it will be available on next render
+            console.log('GameScreen: Position found in URL but not parsed yet:', posFromUrl);
+            return;
+          }
+        } else {
+          // Position is available - validate it's a valid position
+          const validPositions = ['P', 'C', '1B', '2B', 'SS', '3B', 'LF', 'CF', 'RF'];
+          if (!validPositions.includes(position)) {
+            console.error('GameScreen: Invalid position value:', position);
+            navigate('/', { replace: true });
+            return;
+          }
         }
       }
-    }, 100); // Small delay to ensure URL params are parsed on mobile
+    }, 300); // Increased delay for mobile parsing
 
     return () => clearTimeout(timeoutId);
   }, [mode, selectedPosition, navigate, searchParams]);
@@ -85,13 +109,30 @@ export default function GameScreen() {
     );
   }
 
-  // Validate position for my_positions mode
-  if (mode === 'my_positions' && !selectedPosition) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
-    );
+  // Validate position for my_positions mode - but be more lenient during initial load
+  if (mode === 'my_positions') {
+    // Check both selectedPosition and searchParams to handle timing issues
+    const posFromParams = searchParams.get('position');
+    const position = selectedPosition || posFromParams;
+    
+    // Only show loading if we're still waiting for position AND we've given it time
+    // This prevents immediate redirect before URL params are parsed
+    if (!position) {
+      // Check if position is in the URL directly
+      const urlParams = new URLSearchParams(window.location.search);
+      const posFromUrl = urlParams.get('position');
+      
+      if (!posFromUrl) {
+        // Position truly doesn't exist - show loading briefly, validation useEffect will redirect if needed
+        return (
+          <div className="min-h-screen bg-white flex items-center justify-center">
+            <div className="text-center space-y-2">
+              <div className="text-muted-foreground">Loading position...</div>
+            </div>
+          </div>
+        );
+      }
+    }
   }
   
   const { gameState, currentPrompt, showFeedback, roundComplete, handleAnswer, advanceToNext } =
