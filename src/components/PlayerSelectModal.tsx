@@ -72,7 +72,7 @@ export default function PlayerSelectModal({ onSelect, onClose }: PlayerSelectMod
                   </div>
                 )}
                 <span className={cn('text-lg font-bold', isSelected ? 'text-primary' : 'text-card-foreground')}>
-                  #{player.number}
+                  {player.number === 0 && player.id === 1 ? '#00' : player.number === 0 ? '#0' : `#${player.number}`}
                 </span>
                 <span className="text-xs text-muted-foreground">{player.name}</span>
               </button>

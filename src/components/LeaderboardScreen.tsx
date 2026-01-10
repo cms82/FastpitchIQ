@@ -139,7 +139,7 @@ export default function LeaderboardScreen() {
                         </span>
                         <div>
                           <p className="font-semibold text-card-foreground">
-                            #{player.number} {player.name}
+                            {player.number === 0 && player.playerId === 1 ? '#00' : player.number === 0 ? '#0' : `#${player.number}`} {player.name}
                           </p>
                           {player.stats.totalAttempts === 0 && (
                             <p className="text-xs text-muted-foreground">No attempts yet</p>
@@ -191,7 +191,7 @@ export default function LeaderboardScreen() {
                             </span>
                             <div>
                               <p className="font-medium text-card-foreground text-sm">
-                                #{player.number} {player.name}
+                                {player.number === 0 && player.playerId === 1 ? '#00' : player.number === 0 ? '#0' : `#${player.number}`} {player.name}
                               </p>
                             </div>
                           </div>
