@@ -5,10 +5,16 @@ import GameScreen from './components/GameScreen';
 import ProgressScreen from './components/ProgressScreen';
 import LeaderboardScreen from './components/LeaderboardScreen';
 import AdminScreen from './components/AdminScreen';
+import CoachScreen from './components/CoachScreen';
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <Routes>
         <Route path="/" element={<HomeScreen />} />
         <Route path="/setup" element={<SetupScreen />} />
@@ -17,6 +23,7 @@ function App() {
         <Route path="/leaderboard" element={<LeaderboardScreen />} />
         <Route path="/admin" element={<AdminScreen />} />
         <Route path="/admin/player/:playerId" element={<AdminScreen />} />
+        <Route path="/coach" element={<CoachScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

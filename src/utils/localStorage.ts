@@ -13,10 +13,19 @@ const STORAGE_KEYS = {
   PRIMARY_POSITION: 'fastpitchiq_primaryPosition',
   SECONDARY_POSITION: 'fastpitchiq_secondaryPosition',
   POSITION_STATS: 'fastpitchiq_positionStats',
+  POSITION_STATS_LEARNING: 'fastpitchiq_positionStats_learning',
+  POSITION_STATS_TIMED: 'fastpitchiq_positionStats_timed',
   SCENARIO_STATS: 'fastpitchiq_scenarioStats',
+  SCENARIO_STATS_LEARNING: 'fastpitchiq_scenarioStats_learning',
+  SCENARIO_STATS_TIMED: 'fastpitchiq_scenarioStats_timed',
   OVERALL_STATS: 'fastpitchiq_overallStats',
+  OVERALL_STATS_LEARNING: 'fastpitchiq_overallStats_learning',
+  OVERALL_STATS_TIMED: 'fastpitchiq_overallStats_timed',
   WEAK_SPOTS: 'fastpitchiq_weakSpots',
+  WEAK_SPOTS_LEARNING: 'fastpitchiq_weakSpots_learning',
+  WEAK_SPOTS_TIMED: 'fastpitchiq_weakSpots_timed',
   PLAYER_ID: 'fastpitchiq_playerId',
+  LEARNING_MODE: 'fastpitchiq_learningMode',
 } as const;
 
 // Safe localStorage access helper
@@ -76,10 +85,11 @@ export function savePreferences(prefs: UserPreferences): void {
   }
 }
 
-// Position Stats
-export function getPositionStats(): Record<Position, PositionStats> {
+// Position Stats - separated by learning mode
+export function getPositionStats(learningMode: boolean = false): Record<Position, PositionStats> {
   try {
-    const stored = safeGetItem(STORAGE_KEYS.POSITION_STATS);
+    const key = learningMode ? STORAGE_KEYS.POSITION_STATS_LEARNING : STORAGE_KEYS.POSITION_STATS_TIMED;
+    const stored = safeGetItem(key);
     if (!stored) {
       return {} as Record<Position, PositionStats>;
     }
@@ -90,13 +100,22 @@ export function getPositionStats(): Record<Position, PositionStats> {
   }
 }
 
+export function getAllPositionStats(): { learning: Record<Position, PositionStats>; timed: Record<Position, PositionStats> } {
+  return {
+    learning: getPositionStats(true),
+    timed: getPositionStats(false),
+  };
+}
+
 export function updatePositionStats(
   position: Position,
   correct: boolean,
-  timeMs: number
+  timeMs: number,
+  learningMode: boolean = false
 ): void {
   try {
-    const stats = getPositionStats();
+    const key = learningMode ? STORAGE_KEYS.POSITION_STATS_LEARNING : STORAGE_KEYS.POSITION_STATS_TIMED;
+    const stats = getPositionStats(learningMode);
     const current = stats[position] || { attempts: 0, correct: 0, avgTimeMs: 0, lastAskedAt: 0 };
 
     current.attempts += 1;
@@ -109,21 +128,22 @@ export function updatePositionStats(
     current.lastAskedAt = Date.now();
 
     stats[position] = current;
-    safeSetItem(STORAGE_KEYS.POSITION_STATS, JSON.stringify(stats));
+    safeSetItem(key, JSON.stringify(stats));
   } catch (error) {
     console.error('Failed to update position stats:', error);
   }
 }
 
-export function getLastAskedAt(position: Position): number {
-  const stats = getPositionStats();
+export function getLastAskedAt(position: Position, learningMode: boolean = false): number {
+  const stats = getPositionStats(learningMode);
   return stats[position]?.lastAskedAt || 0;
 }
 
-// Scenario Stats
-export function getScenarioStats(): Record<string, ScenarioStats> {
+// Scenario Stats - separated by learning mode
+export function getScenarioStats(learningMode: boolean = false): Record<string, ScenarioStats> {
   try {
-    const stored = safeGetItem(STORAGE_KEYS.SCENARIO_STATS);
+    const key = learningMode ? STORAGE_KEYS.SCENARIO_STATS_LEARNING : STORAGE_KEYS.SCENARIO_STATS_TIMED;
+    const stored = safeGetItem(key);
     if (!stored) {
       return {};
     }
@@ -134,9 +154,10 @@ export function getScenarioStats(): Record<string, ScenarioStats> {
   }
 }
 
-export function updateScenarioStats(scenarioId: string, correct: boolean): void {
+export function updateScenarioStats(scenarioId: string, correct: boolean, learningMode: boolean = false): void {
   try {
-    const stats = getScenarioStats();
+    const key = learningMode ? STORAGE_KEYS.SCENARIO_STATS_LEARNING : STORAGE_KEYS.SCENARIO_STATS_TIMED;
+    const stats = getScenarioStats(learningMode);
     const current = stats[scenarioId] || { attempts: 0, correct: 0 };
 
     current.attempts += 1;
@@ -145,16 +166,17 @@ export function updateScenarioStats(scenarioId: string, correct: boolean): void 
     }
 
     stats[scenarioId] = current;
-    safeSetItem(STORAGE_KEYS.SCENARIO_STATS, JSON.stringify(stats));
+    safeSetItem(key, JSON.stringify(stats));
   } catch (error) {
     console.error('Failed to update scenario stats:', error);
   }
 }
 
-// Overall Stats
-export function getOverallStats(): OverallStats {
+// Overall Stats - separated by learning mode
+export function getOverallStats(learningMode: boolean = false): OverallStats {
   try {
-    const stored = safeGetItem(STORAGE_KEYS.OVERALL_STATS);
+    const key = learningMode ? STORAGE_KEYS.OVERALL_STATS_LEARNING : STORAGE_KEYS.OVERALL_STATS_TIMED;
+    const stored = safeGetItem(key);
     if (!stored) {
       return { totalAttempts: 0, totalCorrect: 0, bestStreak: 0 };
     }
@@ -165,9 +187,17 @@ export function getOverallStats(): OverallStats {
   }
 }
 
-export function updateOverallStats(correct: boolean, currentStreak: number): void {
+export function getAllOverallStats(): { learning: OverallStats; timed: OverallStats } {
+  return {
+    learning: getOverallStats(true),
+    timed: getOverallStats(false),
+  };
+}
+
+export function updateOverallStats(correct: boolean, currentStreak: number, learningMode: boolean = false): void {
   try {
-    const stats = getOverallStats();
+    const key = learningMode ? STORAGE_KEYS.OVERALL_STATS_LEARNING : STORAGE_KEYS.OVERALL_STATS_TIMED;
+    const stats = getOverallStats(learningMode);
     stats.totalAttempts += 1;
     if (correct) {
       stats.totalCorrect += 1;
@@ -175,16 +205,17 @@ export function updateOverallStats(correct: boolean, currentStreak: number): voi
         stats.bestStreak = currentStreak;
       }
     }
-    safeSetItem(STORAGE_KEYS.OVERALL_STATS, JSON.stringify(stats));
+    safeSetItem(key, JSON.stringify(stats));
   } catch (error) {
     console.error('Failed to update overall stats:', error);
   }
 }
 
-// Weak Spots
-export function getWeakSpots(): WeakSpot[] {
+// Weak Spots - separated by learning mode
+export function getWeakSpots(learningMode: boolean = false): WeakSpot[] {
   try {
-    const stored = safeGetItem(STORAGE_KEYS.WEAK_SPOTS);
+    const key = learningMode ? STORAGE_KEYS.WEAK_SPOTS_LEARNING : STORAGE_KEYS.WEAK_SPOTS_TIMED;
+    const stored = safeGetItem(key);
     if (!stored) {
       return [];
     }
@@ -199,10 +230,12 @@ export function updateWeakSpots(
   role: Position,
   questionType: QuestionType,
   intent: AnswerOption,
-  correct: boolean
+  correct: boolean,
+  learningMode: boolean = false
 ): void {
   try {
-    const weakSpots = getWeakSpots();
+    const key = learningMode ? STORAGE_KEYS.WEAK_SPOTS_LEARNING : STORAGE_KEYS.WEAK_SPOTS_TIMED;
+    const weakSpots = getWeakSpots(learningMode);
     let spot = weakSpots.find(
       (s) => s.role === role && s.questionType === questionType && s.intent === intent
     );
@@ -220,24 +253,33 @@ export function updateWeakSpots(
     weakSpots.sort((a, b) => b.missCount - a.missCount);
     const topSpots = weakSpots.slice(0, 10);
 
-    safeSetItem(STORAGE_KEYS.WEAK_SPOTS, JSON.stringify(topSpots));
+    safeSetItem(key, JSON.stringify(topSpots));
   } catch (error) {
     console.error('Failed to update weak spots:', error);
   }
 }
 
-export function getTopWeakSpots(count: number = 3): WeakSpot[] {
-  const weakSpots = getWeakSpots();
+export function getTopWeakSpots(count: number = 3, learningMode: boolean = false): WeakSpot[] {
+  const weakSpots = getWeakSpots(learningMode);
   return weakSpots.slice(0, count);
 }
 
 // Reset all progress (stats only, keeps preferences)
 export function resetProgress(): void {
   try {
+    // Reset both learning and timed mode stats
     safeRemoveItem(STORAGE_KEYS.POSITION_STATS);
+    safeRemoveItem(STORAGE_KEYS.POSITION_STATS_LEARNING);
+    safeRemoveItem(STORAGE_KEYS.POSITION_STATS_TIMED);
     safeRemoveItem(STORAGE_KEYS.SCENARIO_STATS);
+    safeRemoveItem(STORAGE_KEYS.SCENARIO_STATS_LEARNING);
+    safeRemoveItem(STORAGE_KEYS.SCENARIO_STATS_TIMED);
     safeRemoveItem(STORAGE_KEYS.OVERALL_STATS);
+    safeRemoveItem(STORAGE_KEYS.OVERALL_STATS_LEARNING);
+    safeRemoveItem(STORAGE_KEYS.OVERALL_STATS_TIMED);
     safeRemoveItem(STORAGE_KEYS.WEAK_SPOTS);
+    safeRemoveItem(STORAGE_KEYS.WEAK_SPOTS_LEARNING);
+    safeRemoveItem(STORAGE_KEYS.WEAK_SPOTS_TIMED);
   } catch (error) {
     console.error('Failed to reset progress:', error);
   }
@@ -281,5 +323,28 @@ export function setPlayerId(playerId: number): void {
     safeSetItem(STORAGE_KEYS.PLAYER_ID, playerId.toString());
   } catch (error) {
     console.error('Failed to set player ID:', error);
+  }
+}
+
+// Learning Mode Preference
+export function getLearningMode(): boolean {
+  try {
+    const stored = safeGetItem(STORAGE_KEYS.LEARNING_MODE);
+    if (stored === null) {
+      // Default to practice mode (true) if not set
+      return true;
+    }
+    return stored === 'true';
+  } catch (error) {
+    console.error('Failed to get learning mode:', error);
+    return true; // Default to practice mode
+  }
+}
+
+export function setLearningMode(learningMode: boolean): void {
+  try {
+    safeSetItem(STORAGE_KEYS.LEARNING_MODE, learningMode ? 'true' : 'false');
+  } catch (error) {
+    console.error('Failed to set learning mode:', error);
   }
 }

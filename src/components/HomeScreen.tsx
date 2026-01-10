@@ -5,13 +5,13 @@ import { Target, Globe, BarChart3, Trophy } from 'lucide-react';
 import PositionSelectionModal from './PositionSelectionModal';
 import PlayerSelectModal from './PlayerSelectModal';
 import { Position } from '../types';
-import { getPlayerId } from '../utils/localStorage';
+import { getPlayerId, getLearningMode, setLearningMode as saveLearningMode } from '../utils/localStorage';
 import { initializePlayerStats } from '../utils/leaderboard';
 
 export default function HomeScreen() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [learningMode, setLearningMode] = useState(true);
+  const [learningMode, setLearningMode] = useState(() => getLearningMode());
   const [showPositionModal, setShowPositionModal] = useState(false);
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   
@@ -45,18 +45,26 @@ export default function HomeScreen() {
   };
 
   const handlePositionSelected = (position: Position) => {
-    // Ensure modals are closed (redundant but safe)
-    setShowPositionModal(false);
-    setShowPlayerModal(false);
-    
     // URL encode the position parameter
     const encodedPosition = encodeURIComponent(position);
     const url = learningMode 
       ? `/game/my_positions?position=${encodedPosition}&learning=true` 
       : `/game/my_positions?position=${encodedPosition}`;
     
-    // Navigate - modal should already be closed by onClose call in modal
-    navigate(url, { replace: false });
+    // Close modals first
+    setShowPositionModal(false);
+    setShowPlayerModal(false);
+    
+    // Detect mobile devices and use window.location for more reliable navigation
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // Use window.location for mobile - more reliable than React Router navigate on mobile Safari
+      window.location.href = url;
+    } else {
+      // Use React Router for desktop
+      navigate(url, { replace: false });
+    }
   };
 
   const handlePlayerSelected = (playerId: number) => {
@@ -83,24 +91,56 @@ export default function HomeScreen() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-md px-4 pb-safe">
-        <div className="py-12 space-y-8">
+        <div className="py-12">
           {/* Logo */}
-          <div className="text-center">
+          <div className="text-center mb-3">
             <div className="inline-flex items-center justify-center mb-2">
               <img src="/logo.png" alt="Fastpitch IQ Trainer Logo" className="h-32 w-auto" />
+            </div>
+          </div>
+
+          {/* Mode Toggle - Pill Style */}
+          <div className="flex items-center justify-center mb-3">
+            <div className="inline-flex rounded-full bg-secondary p-1 border border-border">
+              <button
+                onClick={() => {
+                  setLearningMode(true);
+                  saveLearningMode(true);
+                }}
+                className={`px-6 py-2 rounded-full font-medium text-sm transition-all ${
+                  learningMode
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Practice Mode
+              </button>
+              <button
+                onClick={() => {
+                  setLearningMode(false);
+                  saveLearningMode(false);
+                }}
+                className={`px-6 py-2 rounded-full font-medium text-sm transition-all ${
+                  !learningMode
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Competition Mode
+              </button>
             </div>
           </div>
 
           {/* Main actions */}
           <div className="space-y-3">
             <PrimaryActionCard
-              title="Quiz – One Position"
-              description="Practice a single position at a time"
+              title={learningMode ? "Practice – One Position" : "Compete – One Position"}
+              description="Play one position at a time"
               icon={<Target className="w-6 h-6" />}
               onClick={handleOnePosition}
             />
             <PrimaryActionCard
-              title="Quiz – All Positions"
+              title={learningMode ? "Practice – All Positions" : "Compete – All Positions"}
               description="Play all 9 positions randomly"
               icon={<Globe className="w-6 h-6" />}
               onClick={handleAllPositions}
@@ -119,19 +159,6 @@ export default function HomeScreen() {
               onClick={handleLeaderboard}
               variant="secondary"
             />
-          </div>
-
-          {/* Learning mode toggle */}
-          <div className="flex items-center justify-center">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={learningMode}
-                onChange={(e) => setLearningMode(e.target.checked)}
-                className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
-              />
-              <span className="text-sm text-muted-foreground">Learning Mode (No Timer)</span>
-            </label>
           </div>
 
           {/* Position Selection Modal */}

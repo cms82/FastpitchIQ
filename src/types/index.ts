@@ -119,11 +119,16 @@ export interface UserPreferences {
 }
 
 // Leaderboard types
+export type LeaderboardMode = 'one_position' | 'all_positions';
+
 export interface RoundStats {
   correct: number;
   incorrect: number;
   totalTime: number; // in milliseconds
   bestStreak: number;
+  mode?: LeaderboardMode; // Mode for leaderboard separation (one_position or all_positions)
+  practiceMode?: 'practice' | 'competition'; // Track practice vs competition mode
+  totalRounds?: number; // Number of completed rounds (each round = 6 prompts)
 }
 
 export interface PlayerLeaderboardStats {
@@ -131,6 +136,7 @@ export interface PlayerLeaderboardStats {
   totalCorrect: number;
   bestStreak: number;
   totalTime: number; // in milliseconds
+  totalRounds: number; // Number of completed rounds
   lastUpdated: number; // timestamp
 }
 

@@ -9,8 +9,7 @@ import SituationHeader from './SituationHeader';
 import PlayerDisplay from './PlayerDisplay';
 import { GameMode } from '../types';
 import { Trophy, Clock, AlertTriangle } from 'lucide-react';
-import { getPlayerId } from '../utils/localStorage';
-import { getOverallStats } from '../utils/localStorage';
+import { getPlayerId, getOverallStats } from '../utils/localStorage';
 import { syncStatsToLeaderboard } from '../utils/leaderboard';
 
 export default function GameScreen() {
@@ -38,28 +37,33 @@ export default function GameScreen() {
   
   // Validate routing and redirect if needed (using useEffect to avoid render-time navigation)
   useEffect(() => {
-    // Only validate after component has mounted and params are available
-    if (!mode) {
-      // Mode not yet parsed, wait
-      return;
-    }
+    // Give it a moment for URL params to be parsed on mobile
+    const timeoutId = setTimeout(() => {
+      // Only validate after component has mounted and params are available
+      if (!mode) {
+        // Mode not yet parsed, wait
+        return;
+      }
 
-    // Validate mode
-    if (mode !== 'my_positions' && mode !== 'whole_field') {
-      console.log('Invalid mode:', mode);
-      navigate('/', { replace: true });
-      return;
-    }
-
-    // For my_positions mode, check if position is provided
-    if (mode === 'my_positions') {
-      const pos = searchParams.get('position');
-      if (!pos) {
-        console.log('Missing position for my_positions mode. URL params:', Array.from(searchParams.entries()));
+      // Validate mode
+      if (mode !== 'my_positions' && mode !== 'whole_field') {
+        console.log('Invalid mode:', mode);
         navigate('/', { replace: true });
         return;
       }
-    }
+
+      // For my_positions mode, check if position is provided
+      if (mode === 'my_positions') {
+        const pos = searchParams.get('position');
+        if (!pos) {
+          console.log('Missing position for my_positions mode. URL params:', Array.from(searchParams.entries()));
+          navigate('/', { replace: true });
+          return;
+        }
+      }
+    }, 100); // Small delay to ensure URL params are parsed on mobile
+
+    return () => clearTimeout(timeoutId);
   }, [mode, selectedPosition, navigate, searchParams]);
 
   if (!scenario) {
@@ -93,26 +97,35 @@ export default function GameScreen() {
   const { gameState, currentPrompt, showFeedback, roundComplete, handleAnswer, advanceToNext } =
     useGameState(scenario, mode, practiceWeakSpots, learningMode, selectedPosition);
 
-  // Sync stats to leaderboard when round completes
+  // Sync stats to leaderboard when round completes (both practice and competition modes)
   useEffect(() => {
     if (roundComplete) {
       const playerId = getPlayerId();
       if (playerId) {
         const { correct, incorrect, totalTime } = gameState.roundStats;
-        const overallStats = getOverallStats();
+        
+        // Determine leaderboard mode based on game mode
+        const leaderboardMode: 'one_position' | 'all_positions' = mode === 'my_positions' ? 'one_position' : 'all_positions';
+        
+        // Get stats for best streak (use the appropriate mode)
+        const overallStats = getOverallStats(learningMode);
         const bestStreak = overallStats.bestStreak;
         
+        // Sync stats with practice mode flag
         syncStatsToLeaderboard(playerId, {
           correct,
           incorrect,
           totalTime,
           bestStreak,
+          mode: leaderboardMode,
+          practiceMode: learningMode ? 'practice' : 'competition',
+          totalRounds: 1, // Each round completion = 1 round
         }).catch(err => {
           console.warn('Failed to sync stats to leaderboard:', err);
         });
       }
     }
-  }, [roundComplete, gameState.roundStats]);
+  }, [roundComplete, gameState.roundStats, learningMode, mode]);
 
   if (roundComplete) {
     const { correct, incorrect, totalTime, responses } = gameState.roundStats;

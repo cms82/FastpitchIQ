@@ -11,6 +11,7 @@ interface PlayerStats {
     totalCorrect: number;
     bestStreak: number;
     totalTime: number;
+    totalRounds: number;
     lastUpdated: number;
   };
 }
@@ -31,22 +32,36 @@ const PLAYERS: Array<{ id: number; name: string; number: number }> = [
   { id: 11, name: 'Zoë', number: 44 },
 ];
 
-// GET /api/leaderboard - Fetch all player stats
-export const onRequestGet = async (context: { env: Env }) => {
-  const { env } = context;
+// GET /api/leaderboard - Fetch all player stats by mode
+export const onRequestGet = async (context: { request: Request; env: Env }) => {
+  const { request, env } = context;
+  
+  const url = new URL(request.url);
+  const mode = url.searchParams.get('mode') || 'all_positions';
+  const practiceMode = url.searchParams.get('practiceMode') || 'competition'; // Default to competition for backwards compatibility
   
   try {
     const allStats: PlayerStats[] = [];
     
-    // Fetch all player keys (player:1, player:2, etc.)
+    // Fetch all player keys for the specified mode and practice mode
+    // New format: player:{id}:{gameMode}:{practiceMode}
+    // Also check old format for backwards compatibility: player:{id}:{gameMode} (implicitly competition)
     for (let i = 1; i <= 11; i++) {
-      const key = `player:${i}`;
-      const value = await env.LEADERBOARD_KV.get(key);
+      // Try new format first
+      const newKey = `player:${i}:${mode}:${practiceMode}`;
+      let value = await env.LEADERBOARD_KV.get(newKey);
+      
+      // If not found and looking for competition, try old format for backwards compatibility
+      if (!value && practiceMode === 'competition') {
+        const oldKey = `player:${i}:${mode}`;
+        value = await env.LEADERBOARD_KV.get(oldKey);
+      }
+      
       if (value) {
         try {
           allStats.push(JSON.parse(value));
         } catch (e) {
-          console.error(`Failed to parse player ${i} stats:`, e);
+          console.error(`Failed to parse player ${i} stats for mode ${mode}, practiceMode ${practiceMode}:`, e);
         }
       } else {
         // If no stats exist, create entry with player info and zero stats
@@ -61,6 +76,7 @@ export const onRequestGet = async (context: { env: Env }) => {
               totalCorrect: 0,
               bestStreak: 0,
               totalTime: 0,
+              totalRounds: 0,
               lastUpdated: 0,
             },
           });

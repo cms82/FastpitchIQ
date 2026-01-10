@@ -11,6 +11,7 @@ interface PlayerStats {
     totalCorrect: number;
     bestStreak: number;
     totalTime: number;
+    totalRounds: number;
     lastUpdated: number;
   };
 }
@@ -20,10 +21,13 @@ interface RoundStats {
   incorrect: number;
   totalTime: number;
   bestStreak: number;
+  totalRounds?: number;
 }
 
 interface SyncRequest {
   playerId: number;
+  mode?: string; // 'one_position' or 'all_positions'
+  practiceMode?: 'practice' | 'competition'; // Track practice vs competition
   roundStats: RoundStats;
 }
 
@@ -48,7 +52,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
   
   try {
     const body: SyncRequest = await request.json();
-    const { playerId, roundStats } = body;
+    const { playerId, mode, roundStats } = body;
     
     if (!playerId || !roundStats) {
       return new Response(JSON.stringify({ error: 'Missing playerId or roundStats' }), {
@@ -60,7 +64,13 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       });
     }
     
-    const key = `player:${playerId}`;
+    // Default to 'all_positions' and 'competition' for backwards compatibility
+    const leaderboardMode = (mode === 'one_position' || mode === 'all_positions') ? mode : 'all_positions';
+    const practiceMode = (body.practiceMode === 'practice' || body.practiceMode === 'competition') ? body.practiceMode : 'competition';
+    
+    // New key structure: player:{id}:{gameMode}:{practiceMode}
+    // For backwards compatibility, also support old format (implicitly competition)
+    const key = `player:${playerId}:${leaderboardMode}:${practiceMode}`;
     
     // Fetch existing stats from KV
     const existingValue = await env.LEADERBOARD_KV.get(key);
@@ -90,13 +100,15 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     const newAttempts = roundStats.correct + roundStats.incorrect;
     const newCorrect = roundStats.correct;
     const newTotalTime = roundStats.totalTime;
+    const newRounds = roundStats.totalRounds || 1;
     
     if (existingStats) {
       // Merge with existing
       existingStats.stats.totalAttempts += newAttempts;
       existingStats.stats.totalCorrect += newCorrect;
       existingStats.stats.totalTime += newTotalTime;
-      existingStats.stats.bestStreak = Math.max(existingStats.stats.bestStreak, roundStats.bestStreak);
+      existingStats.stats.totalRounds = (existingStats.stats.totalRounds || 0) + newRounds;
+      existingStats.stats.bestStreak = Math.max(existingStats.stats.bestStreak || 0, roundStats.bestStreak);
       existingStats.stats.lastUpdated = Date.now();
       
       const updatedValue = JSON.stringify(existingStats);
@@ -112,6 +124,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
           totalCorrect: newCorrect,
           bestStreak: roundStats.bestStreak,
           totalTime: newTotalTime,
+          totalRounds: newRounds,
           lastUpdated: Date.now(),
         },
       };

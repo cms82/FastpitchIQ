@@ -33,18 +33,13 @@ export default function PositionSelectionModal({ onSelect, onClose }: PositionSe
       // Save position before resetting state
       const position = selectedPosition;
       
-      // Immediately close the modal first - this triggers onClose
-      // This is critical on mobile to ensure modal disappears before navigation
-      onClose();
-      
-      // Reset state
+      // Reset state immediately
       setSelectedPosition(null);
       
-      // Then call onSelect to trigger navigation
-      // Use a small delay on mobile to ensure modal has time to unmount
-      setTimeout(() => {
-        onSelect(position);
-      }, 50);
+      // Call onSelect to trigger navigation
+      // The parent component will close the modal via setShowPositionModal(false)
+      // and the useEffect watching location.pathname will also ensure it closes
+      onSelect(position);
     }
   };
 

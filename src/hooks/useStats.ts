@@ -1,17 +1,25 @@
 import { useMemo } from 'react';
 import {
-  getPositionStats,
+  getAllPositionStats,
   getScenarioStats,
-  getOverallStats,
+  getAllOverallStats,
   getTopWeakSpots,
 } from '../utils/localStorage';
 import { Position } from '../types';
 
 export function useStats() {
-  const positionStats = useMemo(() => getPositionStats(), []);
-  const scenarioStats = useMemo(() => getScenarioStats(), []);
-  const overallStats = useMemo(() => getOverallStats(), []);
-  const weakSpots = useMemo(() => getTopWeakSpots(3), []);
+  // Get stats from both learning and timed modes
+  const { learning: learningPositionStats, timed: timedPositionStats } = useMemo(() => getAllPositionStats(), []);
+  const timedScenarioStats = useMemo(() => getScenarioStats(false), []);
+  const { learning: learningOverallStats, timed: timedOverallStats } = useMemo(() => getAllOverallStats(), []);
+  
+  // Use timed mode weak spots for display (learning mode stats kept separate but not shown)
+  const weakSpots = useMemo(() => getTopWeakSpots(3, false), []);
+
+  // Show timed mode stats on progress screen (learning mode stats stored separately)
+  const positionStats = timedPositionStats; // Show timed mode stats
+  const scenarioStats = timedScenarioStats; // Show timed mode stats
+  const overallStats = timedOverallStats; // Show timed mode stats
 
   const accuracy = useMemo(() => {
     if (overallStats.totalAttempts === 0) return 0;
@@ -44,5 +52,10 @@ export function useStats() {
     accuracy,
     avgResponseTime,
     getPositionAccuracy,
+    // Also expose learning mode stats if needed for future features
+    learningPositionStats,
+    timedPositionStats,
+    learningOverallStats,
+    timedOverallStats,
   };
 }

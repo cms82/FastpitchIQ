@@ -109,15 +109,16 @@ export function useGameState(
         ],
       };
 
-      // Update stats
-      updatePositionStats(currentPrompt.role, false, timeMs);
-      updateScenarioStats(scenario.id, false);
-      updateOverallStats(false, currentStreak);
+      // Update stats (timeout counts as incorrect) - timeouts only happen in timed mode
+      updatePositionStats(currentPrompt.role, false, timeMs, false);
+      updateScenarioStats(scenario.id, false, false);
+      updateOverallStats(false, currentStreak, false);
       setCurrentStreak(0);
       updateWeakSpots(
         currentPrompt.role,
         currentPrompt.questionType,
         currentPrompt.correctAnswer,
+        false,
         false
       );
 
@@ -178,21 +179,22 @@ export function useGameState(
       };
 
       // Update stats
-      updatePositionStats(currentPrompt.role, correct, timeMs);
-      updateScenarioStats(scenario.id, correct);
+      updatePositionStats(currentPrompt.role, correct, timeMs, learningMode);
+      updateScenarioStats(scenario.id, correct, learningMode);
       if (correct) {
         const newStreak = currentStreak + 1;
         setCurrentStreak(newStreak);
-        updateOverallStats(true, newStreak);
+        updateOverallStats(true, newStreak, learningMode);
       } else {
         setCurrentStreak(0);
-        updateOverallStats(false, currentStreak);
+        updateOverallStats(false, currentStreak, learningMode);
       }
       updateWeakSpots(
         currentPrompt.role,
         currentPrompt.questionType,
         currentPrompt.correctAnswer,
-        correct
+        correct,
+        learningMode
       );
 
     setGameState((prev) => ({

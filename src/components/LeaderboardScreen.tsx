@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchLeaderboard } from '../utils/leaderboard';
-import { PlayerStats } from '../types';
+import { PlayerStats, LeaderboardMode } from '../types';
 import PlayerDisplay from './PlayerDisplay';
 import { Trophy, RefreshCw } from 'lucide-react';
 
 export default function LeaderboardScreen() {
   const navigate = useNavigate();
+  const [leaderboardMode, setLeaderboardMode] = useState<LeaderboardMode>('all_positions');
   const [leaderboard, setLeaderboard] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -15,29 +16,9 @@ export default function LeaderboardScreen() {
     setLoading(true);
     setError(null);
     try {
-      const stats = await fetchLeaderboard();
-      
-      // Sort by accuracy (descending), then by total attempts, then by best streak
-      const sorted = stats.sort((a, b) => {
-        const aAccuracy = a.stats.totalAttempts > 0 
-          ? (a.stats.totalCorrect / a.stats.totalAttempts) * 100 
-          : 0;
-        const bAccuracy = b.stats.totalAttempts > 0 
-          ? (b.stats.totalCorrect / b.stats.totalAttempts) * 100 
-          : 0;
-        
-        if (Math.abs(aAccuracy - bAccuracy) > 0.01) {
-          return bAccuracy - aAccuracy;
-        }
-        
-        if (a.stats.totalAttempts !== b.stats.totalAttempts) {
-          return b.stats.totalAttempts - a.stats.totalAttempts;
-        }
-        
-        return b.stats.bestStreak - a.stats.bestStreak;
-      });
-      
-      setLeaderboard(sorted);
+      // fetchLeaderboard already handles ranking and filtering
+      const stats = await fetchLeaderboard(leaderboardMode);
+      setLeaderboard(stats);
     } catch (err) {
       setError('Failed to load leaderboard');
       console.error('Error loading leaderboard:', err);
@@ -52,7 +33,7 @@ export default function LeaderboardScreen() {
     // Auto-refresh every 30 seconds
     const interval = setInterval(loadLeaderboard, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [leaderboardMode]);
 
   const getAccuracy = (stats: PlayerStats['stats']): number => {
     if (stats.totalAttempts === 0) return 0;
@@ -96,6 +77,32 @@ export default function LeaderboardScreen() {
                 className="p-2 rounded-lg hover:bg-secondary transition-colors disabled:opacity-50"
               >
                 <RefreshCw className={`w-5 h-5 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Mode Toggle - Pill Style */}
+          <div className="flex items-center justify-center mb-4">
+            <div className="inline-flex rounded-full bg-secondary p-1 border border-border">
+              <button
+                onClick={() => setLeaderboardMode('one_position')}
+                className={`px-6 py-2 rounded-full font-medium text-sm transition-all ${
+                  leaderboardMode === 'one_position'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                One Position
+              </button>
+              <button
+                onClick={() => setLeaderboardMode('all_positions')}
+                className={`px-6 py-2 rounded-full font-medium text-sm transition-all ${
+                  leaderboardMode === 'all_positions'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                All Positions
               </button>
             </div>
           </div>
@@ -169,8 +176,8 @@ export default function LeaderboardScreen() {
                           <p className="text-xs text-muted-foreground">Avg Time</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-sm font-semibold text-card-foreground">{player.stats.bestStreak}</p>
-                          <p className="text-xs text-muted-foreground">Best Streak</p>
+                          <p className="text-sm font-semibold text-card-foreground">{player.stats.totalRounds}</p>
+                          <p className="text-xs text-muted-foreground">Rounds</p>
                         </div>
                       </div>
                     )}
@@ -216,10 +223,11 @@ export default function LeaderboardScreen() {
                             </div>
                             <div className="text-center">
                               <p className="text-xs font-medium text-muted-foreground">{player.stats.bestStreak}</p>
+                              <p className="text-xs text-muted-foreground/70">Best Streak</p>
                             </div>
                             <div className="text-center">
                               <p className="text-xs font-medium text-muted-foreground">
-                                {player.stats.totalAttempts} attempts
+                                {player.stats.totalRounds} rounds
                               </p>
                             </div>
                           </div>
@@ -236,7 +244,7 @@ export default function LeaderboardScreen() {
           {!loading && !error && leaderboard.length === 0 && (
             <div className="text-center py-12 space-y-4">
               <Trophy className="w-16 h-16 text-muted-foreground mx-auto opacity-50" />
-              <p className="text-muted-foreground">No player stats yet. Start playing to see the leaderboard!</p>
+              <p className="text-muted-foreground">Complete 5 rounds in Competition Mode to appear on the leaderboard!</p>
             </div>
           )}
         </div>

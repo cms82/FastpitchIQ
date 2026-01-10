@@ -116,8 +116,8 @@ function generateWholeFieldPrompts(scenario: Scenario): Prompt[] {
       (role) => scenario.roles[role as Position] && !usedRoles.has(role)
     );
     if (backupRoles.length > 0) {
-      // Prefer least recently asked
-      backupRoles.sort((a, b) => getLastAskedAt(a as Position) - getLastAskedAt(b as Position));
+      // Prefer least recently asked (use timed mode stats for prompt selection)
+      backupRoles.sort((a, b) => getLastAskedAt(a as Position, false) - getLastAskedAt(b as Position, false));
       const selected = backupRoles[0] as Position;
       usedRoles.add(selected);
       const roleDef = scenario.roles[selected];
@@ -142,7 +142,8 @@ function generateWholeFieldPrompts(scenario: Scenario): Prompt[] {
       continue;
     }
 
-    const lastAskedAt = getLastAskedAt(position);
+    // Use timed mode stats for prompt selection priority
+    const lastAskedAt = getLastAskedAt(position, false);
     let priority = lastAskedAt; // Lower timestamp = higher priority
 
     // Boost recommended roles
@@ -191,7 +192,8 @@ function generateWholeFieldPrompts(scenario: Scenario): Prompt[] {
 }
 
 function generateWeakSpotsPrompts(scenario: Scenario): Prompt[] {
-  const weakSpots = getTopWeakSpots(6);
+  // Use timed mode weak spots for practice (learning mode stats kept separate)
+  const weakSpots = getTopWeakSpots(6, false);
   const prompts: Prompt[] = [];
 
   for (const spot of weakSpots) {
