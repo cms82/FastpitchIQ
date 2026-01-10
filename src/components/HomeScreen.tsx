@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import PrimaryActionCard from './PrimaryActionCard';
 import { Target, Globe, BarChart3, Trophy } from 'lucide-react';
 import PositionSelectionModal from './PositionSelectionModal';
@@ -10,12 +10,24 @@ import { initializePlayerStats } from '../utils/leaderboard';
 
 export default function HomeScreen() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [learningMode, setLearningMode] = useState(true);
   const [showPositionModal, setShowPositionModal] = useState(false);
   const [showPlayerModal, setShowPlayerModal] = useState(false);
   
+  // Reset modals when location changes (navigating away)
+  useEffect(() => {
+    if (location.pathname !== '/') {
+      setShowPositionModal(false);
+      setShowPlayerModal(false);
+    }
+  }, [location.pathname]);
+  
   // Check for player selection on mount - show modal if no player selected
   useEffect(() => {
+    // Only show modal if we're on the home route
+    if (location.pathname !== '/') return;
+    
     const playerId = getPlayerId();
     if (!playerId) {
       // Show player selection modal on first visit
@@ -26,18 +38,25 @@ export default function HomeScreen() {
         console.warn('Failed to initialize player stats:', err);
       });
     }
-  }, []);
+  }, [location.pathname]);
 
   const handleOnePosition = () => {
     setShowPositionModal(true);
   };
 
   const handlePositionSelected = (position: Position) => {
+    // Immediately close all modals before navigation
     setShowPositionModal(false);
+    setShowPlayerModal(false);
+    
+    // URL encode the position parameter
+    const encodedPosition = encodeURIComponent(position);
     const url = learningMode 
-      ? `/game/my_positions?position=${position}&learning=true` 
-      : `/game/my_positions?position=${position}`;
-    navigate(url);
+      ? `/game/my_positions?position=${encodedPosition}&learning=true` 
+      : `/game/my_positions?position=${encodedPosition}`;
+    
+    // Use replace to avoid back button issues, navigate immediately
+    navigate(url, { replace: false });
   };
 
   const handlePlayerSelected = (playerId: number) => {
@@ -65,13 +84,11 @@ export default function HomeScreen() {
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-md px-4 pb-safe">
         <div className="py-12 space-y-8">
-          {/* Logo & Title */}
-          <div className="text-center space-y-3">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-2">
-              <Target className="w-8 h-8 text-primary" />
+          {/* Logo */}
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center mb-2">
+              <img src="/logo.png" alt="Fastpitch IQ Trainer Logo" className="h-32 w-auto" />
             </div>
-            <h1 className="text-3xl font-bold text-card-foreground">Fastpitch IQ Trainer</h1>
-            <p className="text-muted-foreground">6 quick prompts per round. Get faster every day.</p>
           </div>
 
           {/* Main actions */}

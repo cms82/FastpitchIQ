@@ -42,25 +42,48 @@ export function useGameState(
 
   // Initialize prompts
   useEffect(() => {
-    const position = mode === 'my_positions' && selectedPosition ? (selectedPosition as Position) : null;
-    const prompts = generatePrompts(
-      scenario,
-      mode,
-      position,
-      practiceWeakSpots
-    );
+    try {
+      const position = mode === 'my_positions' && selectedPosition ? (selectedPosition as Position) : null;
+      
+      console.log('useGameState: Initializing prompts', { mode, selectedPosition, position });
+      
+      // Validate position for my_positions mode
+      if (mode === 'my_positions' && !position) {
+        console.error('Missing position for my_positions mode. SelectedPosition:', selectedPosition);
+        return;
+      }
+      
+      const prompts = generatePrompts(
+        scenario,
+        mode,
+        position,
+        practiceWeakSpots
+      );
 
-    // Generate answers for all prompts
-    const promptsWithAnswers = prompts.map((p) => generateAnswers(p, scenario, roundState));
+      console.log('Generated prompts:', prompts.length);
 
-    setGameState((prev) => ({
-      ...prev,
-      prompts: promptsWithAnswers,
-      currentPromptIndex: 0,
-      timerActive: !learningMode,
-      timerRemaining: TIMER_DURATION,
-    }));
-    setPromptStartTime(Date.now());
+      // Generate answers for all prompts
+      const promptsWithAnswers = prompts.map((p) => generateAnswers(p, scenario, roundState));
+
+      console.log('Generated prompts with answers:', promptsWithAnswers.length);
+
+      setGameState((prev) => ({
+        ...prev,
+        prompts: promptsWithAnswers,
+        currentPromptIndex: 0,
+        timerActive: !learningMode,
+        timerRemaining: TIMER_DURATION,
+      }));
+      setPromptStartTime(Date.now());
+    } catch (error) {
+      console.error('Failed to initialize prompts:', error);
+      // Set empty prompts to prevent infinite loading
+      setGameState((prev) => ({
+        ...prev,
+        prompts: [],
+        currentPromptIndex: 0,
+      }));
+    }
   }, [scenario, mode, practiceWeakSpots, learningMode, selectedPosition]);
 
   const handleTimeout = useCallback(() => {

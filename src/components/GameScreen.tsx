@@ -18,7 +18,14 @@ export default function GameScreen() {
   const navigate = useNavigate();
   const practiceWeakSpots = searchParams.get('weakSpots') === 'true';
   const learningMode = searchParams.get('learning') === 'true';
-  const selectedPosition = searchParams.get('position') || null;
+  const selectedPositionRaw = searchParams.get('position');
+  const selectedPosition = selectedPositionRaw ? decodeURIComponent(selectedPositionRaw) : null;
+
+  // Debug logging
+  useEffect(() => {
+    console.log('GameScreen loaded - Mode:', mode, 'Position:', selectedPosition, 'Learning:', learningMode);
+  }, [mode, selectedPosition, learningMode]);
+  
   const [scenario] = useState(() => {
     try {
       return getRandomScenario();
@@ -28,6 +35,32 @@ export default function GameScreen() {
     }
   });
   
+  // Validate routing and redirect if needed (using useEffect to avoid render-time navigation)
+  useEffect(() => {
+    // Only validate after component has mounted and params are available
+    if (!mode) {
+      // Mode not yet parsed, wait
+      return;
+    }
+
+    // Validate mode
+    if (mode !== 'my_positions' && mode !== 'whole_field') {
+      console.log('Invalid mode:', mode);
+      navigate('/', { replace: true });
+      return;
+    }
+
+    // For my_positions mode, check if position is provided
+    if (mode === 'my_positions') {
+      const pos = searchParams.get('position');
+      if (!pos) {
+        console.log('Missing position for my_positions mode. URL params:', Array.from(searchParams.entries()));
+        navigate('/', { replace: true });
+        return;
+      }
+    }
+  }, [mode, selectedPosition, navigate, searchParams]);
+
   if (!scenario) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -38,19 +71,26 @@ export default function GameScreen() {
     );
   }
 
-  // Validate that position is provided for my_positions mode
+  // Validate mode
+  if (!mode || (mode !== 'my_positions' && mode !== 'whole_field')) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  // Validate position for my_positions mode
   if (mode === 'my_positions' && !selectedPosition) {
-    navigate('/');
-    return null;
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
   }
   
   const { gameState, currentPrompt, showFeedback, roundComplete, handleAnswer, advanceToNext } =
-    useGameState(scenario, mode || 'whole_field', practiceWeakSpots, learningMode, selectedPosition);
-
-  if (!mode || (mode !== 'my_positions' && mode !== 'whole_field')) {
-    navigate('/');
-    return null;
-  }
+    useGameState(scenario, mode, practiceWeakSpots, learningMode, selectedPosition);
 
   // Sync stats to leaderboard when round completes
   useEffect(() => {
@@ -155,9 +195,33 @@ export default function GameScreen() {
   }
 
   if (!currentPrompt) {
+    // Check if prompts are being generated
+    if (gameState.prompts.length === 0) {
+      return (
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="text-center space-y-2">
+            <div className="text-muted-foreground">Loading game...</div>
+            <div className="text-xs text-muted-foreground">Setting up prompts</div>
+          </div>
+        </div>
+      );
+    }
+    // If prompts exist but currentPrompt is null, there's an issue with the prompt index
+    console.error('Prompts exist but currentPrompt is null', {
+      promptsLength: gameState.prompts.length,
+      currentPromptIndex: gameState.currentPromptIndex,
+    });
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <div className="text-muted-foreground">Error loading prompt</div>
+          <button
+            onClick={() => navigate('/')}
+            className="text-sm text-primary underline mt-2"
+          >
+            Return to home
+          </button>
+        </div>
       </div>
     );
   }
