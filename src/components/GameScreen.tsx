@@ -1,13 +1,16 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useGameState } from '../hooks/useGameState';
 import { getRandomScenario } from '../utils/scenarioEngine';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Field from './Field';
 import AnswerButtons from './AnswerButtons';
 import FeedbackOverlay from './FeedbackOverlay';
 import SituationHeader from './SituationHeader';
 import { GameMode } from '../types';
 import { Trophy, Clock, AlertTriangle } from 'lucide-react';
+import { getPlayerId } from '../utils/localStorage';
+import { getOverallStats } from '../utils/localStorage';
+import { syncStatsToLeaderboard } from '../utils/leaderboard';
 
 export default function GameScreen() {
   const { mode } = useParams<{ mode: GameMode }>();
@@ -48,6 +51,27 @@ export default function GameScreen() {
     navigate('/');
     return null;
   }
+
+  // Sync stats to leaderboard when round completes
+  useEffect(() => {
+    if (roundComplete) {
+      const playerId = getPlayerId();
+      if (playerId) {
+        const { correct, incorrect, totalTime } = gameState.roundStats;
+        const overallStats = getOverallStats();
+        const bestStreak = overallStats.bestStreak;
+        
+        syncStatsToLeaderboard(playerId, {
+          correct,
+          incorrect,
+          totalTime,
+          bestStreak,
+        }).catch(err => {
+          console.warn('Failed to sync stats to leaderboard:', err);
+        });
+      }
+    }
+  }, [roundComplete, gameState.roundStats]);
 
   if (roundComplete) {
     const { correct, incorrect, totalTime, responses } = gameState.roundStats;

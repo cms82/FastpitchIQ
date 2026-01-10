@@ -1,14 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PrimaryActionCard from './PrimaryActionCard';
-import { Target, Globe, BarChart3 } from 'lucide-react';
+import { Target, Globe, BarChart3, Trophy } from 'lucide-react';
 import PositionSelectionModal from './PositionSelectionModal';
+import PlayerSelectModal from './PlayerSelectModal';
 import { Position } from '../types';
+import { getPlayerId } from '../utils/localStorage';
+import { initializePlayerStats } from '../utils/leaderboard';
 
 export default function HomeScreen() {
   const navigate = useNavigate();
   const [learningMode, setLearningMode] = useState(true);
   const [showPositionModal, setShowPositionModal] = useState(false);
+  const [showPlayerModal, setShowPlayerModal] = useState(false);
+  
+  // Check for player selection on mount
+  useEffect(() => {
+    const playerId = getPlayerId();
+    if (!playerId) {
+      setShowPlayerModal(true);
+    } else {
+      // Initialize stats from KV for cross-device sync
+      initializePlayerStats(playerId).catch(err => {
+        console.warn('Failed to initialize player stats:', err);
+      });
+    }
+  }, []);
 
   const handleOnePosition = () => {
     setShowPositionModal(true);
@@ -20,6 +37,18 @@ export default function HomeScreen() {
       ? `/game/my_positions?position=${position}&learning=true` 
       : `/game/my_positions?position=${position}`;
     navigate(url);
+  };
+
+  const handlePlayerSelected = (playerId: number) => {
+    setShowPlayerModal(false);
+    // Initialize stats from KV after player selection
+    initializePlayerStats(playerId).catch(err => {
+      console.warn('Failed to initialize player stats:', err);
+    });
+  };
+
+  const handleLeaderboard = () => {
+    navigate('/leaderboard');
   };
 
   const handleAllPositions = () => {
@@ -65,6 +94,13 @@ export default function HomeScreen() {
               onClick={handleProgress}
               variant="secondary"
             />
+            <PrimaryActionCard
+              title="Leaderboard"
+              description="See how you rank against your teammates"
+              icon={<Trophy className="w-6 h-6" />}
+              onClick={handleLeaderboard}
+              variant="secondary"
+            />
           </div>
 
           {/* Learning mode toggle */}
@@ -85,6 +121,21 @@ export default function HomeScreen() {
             <PositionSelectionModal
               onSelect={handlePositionSelected}
               onClose={() => setShowPositionModal(false)}
+            />
+          )}
+
+          {/* Player Selection Modal */}
+          {showPlayerModal && (
+            <PlayerSelectModal
+              onSelect={handlePlayerSelected}
+              onClose={() => {
+                // Don't allow closing without selecting (required for leaderboard)
+                const playerId = getPlayerId();
+                if (!playerId) {
+                  return; // Keep modal open
+                }
+                setShowPlayerModal(false);
+              }}
             />
           )}
         </div>

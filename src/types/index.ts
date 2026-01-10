@@ -117,3 +117,26 @@ export interface UserPreferences {
   selectedPrimaryPosition: Position | null;
   selectedSecondaryPosition: Position | null;
 }
+
+// Leaderboard types
+export interface RoundStats {
+  correct: number;
+  incorrect: number;
+  totalTime: number; // in milliseconds
+  bestStreak: number;
+}
+
+export interface PlayerLeaderboardStats {
+  totalAttempts: number;
+  totalCorrect: number;
+  bestStreak: number;
+  totalTime: number; // in milliseconds
+  lastUpdated: number; // timestamp
+}
+
+export interface PlayerStats {
+  playerId: number;
+  name: string;
+  number: number;
+  stats: PlayerLeaderboardStats;
+}

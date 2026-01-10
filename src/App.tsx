@@ -3,6 +3,7 @@ import HomeScreen from './components/HomeScreen';
 import SetupScreen from './components/SetupScreen';
 import GameScreen from './components/GameScreen';
 import ProgressScreen from './components/ProgressScreen';
+import LeaderboardScreen from './components/LeaderboardScreen';
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="/setup" element={<SetupScreen />} />
         <Route path="/game/:mode" element={<GameScreen />} />
         <Route path="/progress" element={<ProgressScreen />} />
+        <Route path="/leaderboard" element={<LeaderboardScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

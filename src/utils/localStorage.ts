@@ -16,6 +16,7 @@ const STORAGE_KEYS = {
   SCENARIO_STATS: 'fastpitchiq_scenarioStats',
   OVERALL_STATS: 'fastpitchiq_overallStats',
   WEAK_SPOTS: 'fastpitchiq_weakSpots',
+  PLAYER_ID: 'fastpitchiq_playerId',
 } as const;
 
 // Safe localStorage access helper
@@ -250,5 +251,26 @@ export function resetAll(): void {
     safeRemoveItem(STORAGE_KEYS.SECONDARY_POSITION);
   } catch (error) {
     console.error('Failed to reset all:', error);
+  }
+}
+
+// Player ID storage
+export function getPlayerId(): number | null {
+  try {
+    const stored = safeGetItem(STORAGE_KEYS.PLAYER_ID);
+    if (!stored) return null;
+    const playerId = parseInt(stored, 10);
+    return isNaN(playerId) ? null : playerId;
+  } catch (error) {
+    console.error('Failed to get player ID:', error);
+    return null;
+  }
+}
+
+export function setPlayerId(playerId: number): void {
+  try {
+    safeSetItem(STORAGE_KEYS.PLAYER_ID, playerId.toString());
+  } catch (error) {
+    console.error('Failed to set player ID:', error);
   }
 }
