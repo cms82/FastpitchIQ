@@ -151,9 +151,16 @@ export default function LeaderboardScreen() {
                           {getRankIcon(index)}
                         </span>
                         <div>
-                          <p className="font-semibold text-card-foreground">
-                            {player.number === 0 && player.playerId === 1 ? '#00' : player.number === 0 ? '#0' : `#${player.number}`} {player.name}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-card-foreground">
+                              {player.number === 0 && player.playerId === 1 ? '#00' : player.number === 0 ? '#0' : `#${player.number}`} {player.name}
+                            </p>
+                            {player.stats.totalRounds > 0 && player.stats.totalRounds < 5 && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                {player.stats.totalRounds}/5 rounds
+                              </span>
+                            )}
+                          </div>
                           {player.stats.totalAttempts === 0 && (
                             <p className="text-xs text-muted-foreground">No attempts yet</p>
                           )}
@@ -203,9 +210,16 @@ export default function LeaderboardScreen() {
                               {globalIndex + 1}.
                             </span>
                             <div>
-                              <p className="font-medium text-card-foreground text-sm">
-                                {player.number === 0 && player.playerId === 1 ? '#00' : player.number === 0 ? '#0' : `#${player.number}`} {player.name}
-                              </p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-card-foreground text-sm">
+                                  {player.number === 0 && player.playerId === 1 ? '#00' : player.number === 0 ? '#0' : `#${player.number}`} {player.name}
+                                </p>
+                                {player.stats.totalRounds > 0 && player.stats.totalRounds < 5 && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                    {player.stats.totalRounds}/5
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                           {player.stats.totalAttempts > 0 ? (
@@ -240,11 +254,11 @@ export default function LeaderboardScreen() {
             </div>
           )}
 
-          {/* Empty state */}
+          {/* Empty state - should only show if truly no data */}
           {!loading && !error && leaderboard.length === 0 && (
             <div className="text-center py-12 space-y-4">
               <Trophy className="w-16 h-16 text-muted-foreground mx-auto opacity-50" />
-              <p className="text-muted-foreground">Complete 5 rounds in Competition Mode to appear on the leaderboard!</p>
+              <p className="text-muted-foreground">No leaderboard data available yet.</p>
             </div>
           )}
         </div>

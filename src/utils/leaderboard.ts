@@ -228,11 +228,13 @@ export async function fetchLeaderboard(mode: LeaderboardMode = 'all_positions'):
       };
     });
     
-    // Filter players with less than 5 rounds (minimum threshold)
+    // Separate players by eligibility (5+ rounds for ranking)
     const MIN_ROUNDS = 5;
     const eligiblePlayers = allPlayers.filter(p => p.stats.totalRounds >= MIN_ROUNDS);
+    const ineligiblePlayers = allPlayers.filter(p => p.stats.totalRounds < MIN_ROUNDS && p.stats.totalRounds > 0);
+    const noActivityPlayers = allPlayers.filter(p => p.stats.totalRounds === 0);
     
-    // Calculate confidence-adjusted score for ranking
+    // Calculate confidence-adjusted score for ranking (only eligible players)
     // Score = (correct + minAttempts × globalAvg) / (totalAttempts + minAttempts)
     const MIN_ATTEMPTS = 30; // 5 rounds × 6 prompts = 30 minimum attempts
     const globalAvg = eligiblePlayers.length > 0
@@ -242,8 +244,8 @@ export async function fetchLeaderboard(mode: LeaderboardMode = 'all_positions'):
         }, 0) / eligiblePlayers.length
       : 0.7; // Default 70% if no players
     
-    // Calculate confidence-adjusted scores and sort
-    const rankedPlayers = eligiblePlayers.map(player => {
+    // Calculate confidence-adjusted scores for eligible players and sort
+    const rankedEligiblePlayers = eligiblePlayers.map(player => {
       const confidenceScore = (player.stats.totalCorrect + MIN_ATTEMPTS * globalAvg) / (player.stats.totalAttempts + MIN_ATTEMPTS);
       return { ...player, confidenceScore };
     }).sort((a, b) => {
@@ -259,8 +261,25 @@ export async function fetchLeaderboard(mode: LeaderboardMode = 'all_positions'):
       return b.stats.bestStreak - a.stats.bestStreak;
     });
     
-    // Remove confidenceScore before returning
-    return rankedPlayers.map(({ confidenceScore, ...player }) => player);
+    // Sort ineligible players by simple accuracy (no confidence adjustment)
+    const sortedIneligiblePlayers = ineligiblePlayers.sort((a, b) => {
+      const aAccuracy = a.stats.totalAttempts > 0 ? a.stats.totalCorrect / a.stats.totalAttempts : 0;
+      const bAccuracy = b.stats.totalAttempts > 0 ? b.stats.totalCorrect / b.stats.totalAttempts : 0;
+      if (Math.abs(aAccuracy - bAccuracy) > 0.001) {
+        return bAccuracy - aAccuracy;
+      }
+      // Tie-breaker: more rounds is better
+      return b.stats.totalRounds - a.stats.totalRounds;
+    });
+    
+    // Combine: Eligible (ranked) first, then ineligible, then no activity
+    const rankedPlayers = [
+      ...rankedEligiblePlayers.map(({ confidenceScore, ...player }) => player),
+      ...sortedIneligiblePlayers,
+      ...noActivityPlayers,
+    ];
+    
+    return rankedPlayers;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       console.warn('Fetch leaderboard timed out');
