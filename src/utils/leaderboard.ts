@@ -1,4 +1,3 @@
-import { getOverallStats } from './localStorage';
 import { PlayerStats, RoundStats } from '../types';
 import { PLAYERS } from '../config/players';
 
@@ -39,15 +38,9 @@ export async function initializePlayerStats(playerId: number): Promise<void> {
       return;
     }
 
-    // Get local stats
-    const localStats = getOverallStats();
-
-    // If KV stats are more recent or have more attempts, merge them
-    // For now, we'll just ensure local stats don't override KV stats
+    // KV stats fetched successfully
     // The merge happens when syncing after a round
     // This function primarily ensures we have the latest from KV
-    
-    // Store KV stats in localStorage as reference
     // We'll sync local stats to KV after next round
   } catch (error) {
     console.warn('Failed to initialize player stats:', error);
@@ -58,25 +51,14 @@ export async function initializePlayerStats(playerId: number): Promise<void> {
 // Sync round stats to KV - fetches from KV first, merges, writes back
 export async function syncStatsToLeaderboard(playerId: number, roundStats: RoundStats): Promise<boolean> {
   try {
-    // Fetch current stats from KV first
-    const existingStats = await fetchPlayerStats(playerId);
-    
-    // Get local stats to ensure we include any unsynced local activity
-    const localStats = getOverallStats();
-    
-    // Calculate new round contribution
-    const newAttempts = roundStats.correct + roundStats.incorrect;
-    const newCorrect = roundStats.correct;
-    const newTotalTime = roundStats.totalTime;
-    
     // Prepare the sync payload
     // The API will handle merging with existing KV stats
     const syncPayload = {
       playerId,
       roundStats: {
-        correct: newCorrect,
+        correct: roundStats.correct,
         incorrect: roundStats.incorrect,
-        totalTime: newTotalTime,
+        totalTime: roundStats.totalTime,
         bestStreak: roundStats.bestStreak,
       },
     };
