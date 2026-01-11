@@ -294,6 +294,12 @@ export default function GameScreen() {
                   View Progress
                 </button>
               </div>
+              <button
+                onClick={() => navigate('/')}
+                className="w-full py-3 rounded-xl bg-secondary text-secondary-foreground font-medium transition-all active:scale-[0.98]"
+              >
+                Return to Home
+              </button>
             </div>
           </div>
         </div>

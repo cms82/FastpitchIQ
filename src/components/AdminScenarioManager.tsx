@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Scenario } from '../types';
 import { fetchScenarios, createScenario, updateScenario, deleteScenario } from '../utils/scenarios';
-import { loadScenarios } from '../utils/scenarioEngine';
 import { Edit2, Trash2, Plus, X, Save } from 'lucide-react';
 import ConfirmationDialog from './ConfirmationDialog';
 import ScenarioFormEditor from './ScenarioFormEditor';
@@ -31,25 +30,19 @@ export default function AdminScenarioManager() {
     setLoading(true);
     setError(null);
     try {
-      // Load from static JSON (always available)
-      const staticScenarios = loadScenarios();
-      
-      // Try to load from KV (may be empty in dev)
+      // Load from KV only (no static scenarios)
       const kvScenarios = await fetchScenarios();
       
-      // Merge: KV scenarios take precedence (by ID), then static
-      const scenarioMap = new Map<string, Scenario>();
-      
-      // Add static scenarios first
-      staticScenarios.forEach(s => scenarioMap.set(s.id, s));
-      
-      // Override with KV scenarios if they exist
-      kvScenarios.forEach(s => scenarioMap.set(s.id, s));
-      
-      setScenarios(Array.from(scenarioMap.values()));
+      if (kvScenarios.length === 0) {
+        console.warn('No scenarios found in KV');
+        setScenarios([]);
+      } else {
+        setScenarios(kvScenarios);
+      }
     } catch (err) {
       console.error('Error loading scenarios:', err);
       setError('Failed to load scenarios');
+      setScenarios([]);
     } finally {
       setLoading(false);
     }

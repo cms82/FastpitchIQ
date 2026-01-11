@@ -52,7 +52,7 @@ export const onRequestGet = async (context: { request: Request; env: Env; params
   }
 };
 
-// PUT /api/players/:id - Update an existing player
+// PUT /api/players/:id - Update an existing player (upsert: update if exists, create if not)
 export const onRequestPut = async (context: { request: Request; env: Env; params: { id: string } }) => {
   const { env, params, request } = context;
   try {
@@ -60,7 +60,10 @@ export const onRequestPut = async (context: { request: Request; env: Env; params
     if (isNaN(id)) {
       return new Response(JSON.stringify({ error: 'Invalid player ID' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
       });
     }
 
@@ -69,50 +72,114 @@ export const onRequestPut = async (context: { request: Request; env: Env; params
     if (!updates.name && typeof updates.number !== 'number') {
       return new Response(JSON.stringify({ error: 'Name or number is required' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
       });
     }
 
-    // Check if player exists
+    // Upsert player (update if exists, create if not)
     const key = `player:${id}`;
     const existingValue = await env.PLAYERS_KV.get(key);
-    if (!existingValue) {
-      return new Response(JSON.stringify({ error: 'Player not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
+    const isNew = !existingValue;
+    
+    console.log(`PUT /api/players/${id}: isNew=${isNew}, existing=${!!existingValue}`);
 
-    const existingPlayer: Player = JSON.parse(existingValue);
+    let updatedPlayer: Player;
+    if (existingValue) {
+      // Update existing player
+      const existingPlayer: Player = JSON.parse(existingValue);
+      
+      // Check for duplicate jersey number (if number is being updated)
+      if (typeof updates.number === 'number' && updates.number !== existingPlayer.number) {
+        const listKey = 'players:list';
+        const playerIdsString = await env.PLAYERS_KV.get(listKey);
+        const playerIds: number[] = playerIdsString ? JSON.parse(playerIdsString) : [];
 
-    // Check for duplicate jersey number (if number is being updated)
-    if (typeof updates.number === 'number' && updates.number !== existingPlayer.number) {
+        for (const playerId of playerIds) {
+          if (playerId === id) continue; // Skip current player
+          const otherPlayerJson = await env.PLAYERS_KV.get(`player:${playerId}`);
+          if (otherPlayerJson) {
+            const otherPlayer: Player = JSON.parse(otherPlayerJson);
+            if (otherPlayer.number === updates.number) {
+              return new Response(JSON.stringify({ error: `Jersey number ${updates.number} is already taken by ${otherPlayer.name}` }), {
+                status: 409,
+                headers: { 
+                  'Content-Type': 'application/json',
+                  'Access-Control-Allow-Origin': '*',
+                },
+              });
+            }
+          }
+        }
+      }
+
+      updatedPlayer = {
+        ...existingPlayer,
+        ...updates,
+      };
+    } else {
+      // Create new player
+      if (!updates.name || typeof updates.number !== 'number') {
+        return new Response(JSON.stringify({ error: 'Name and number are required for new players' }), {
+          status: 400,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        });
+      }
+
+      // Check for duplicate jersey number
       const listKey = 'players:list';
       const playerIdsString = await env.PLAYERS_KV.get(listKey);
       const playerIds: number[] = playerIdsString ? JSON.parse(playerIdsString) : [];
 
       for (const playerId of playerIds) {
-        if (playerId === id) continue; // Skip current player
         const otherPlayerJson = await env.PLAYERS_KV.get(`player:${playerId}`);
         if (otherPlayerJson) {
           const otherPlayer: Player = JSON.parse(otherPlayerJson);
           if (otherPlayer.number === updates.number) {
             return new Response(JSON.stringify({ error: `Jersey number ${updates.number} is already taken by ${otherPlayer.name}` }), {
               status: 409,
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+              },
             });
           }
         }
       }
+
+      updatedPlayer = {
+        id,
+        name: updates.name,
+        number: updates.number,
+      };
     }
 
-    // Update player
-    const updatedPlayer: Player = {
-      ...existingPlayer,
-      ...updates,
-    };
-
+    // Save player
     await env.PLAYERS_KV.put(key, JSON.stringify(updatedPlayer));
+    console.log(`PUT /api/players/${id}: Successfully saved to KV`);
+
+    // If this is a new player, add it to the players list
+    if (isNew) {
+      const listKey = 'players:list';
+      const playerIdsString = await env.PLAYERS_KV.get(listKey);
+      let playerIds: number[] = [];
+      if (playerIdsString) {
+        try {
+          playerIds = JSON.parse(playerIdsString);
+        } catch (e) {
+          console.error('Failed to parse players list:', e);
+        }
+      }
+      if (!playerIds.includes(id)) {
+        playerIds.push(id);
+        await env.PLAYERS_KV.put(listKey, JSON.stringify(playerIds));
+      }
+    }
 
     return new Response(JSON.stringify(updatedPlayer), {
       headers: {
@@ -124,9 +191,19 @@ export const onRequestPut = async (context: { request: Request; env: Env; params
     });
   } catch (error) {
     console.error(`Error updating player ${params.id}:`, error);
-    return new Response(JSON.stringify({ error: 'Failed to update player' }), {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('Error details:', { errorMessage, errorStack, id: params.id });
+    return new Response(JSON.stringify({ 
+      error: 'Failed to update player',
+      details: errorMessage,
+      id: params.id,
+    }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
     });
   }
 };

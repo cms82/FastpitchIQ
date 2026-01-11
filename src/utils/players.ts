@@ -1,5 +1,4 @@
 import { Player } from '../config/players';
-import { PLAYERS as DEFAULT_PLAYERS } from '../config/players';
 
 const API_BASE_URL = ''; // Use relative URLs for Cloudflare Pages Functions
 
@@ -12,36 +11,40 @@ const isViteDevMode = () => {
   return (hostname === 'localhost' || hostname === '127.0.0.1') && port === '5173';
 };
 
-// Fetch all players from KV, merging with default ones
+// Fetch all players from KV only (no default players)
 export async function fetchPlayers(): Promise<Player[]> {
   if (isViteDevMode()) {
-    // In Vite dev mode, return default players for now
-    console.warn('Running in Vite dev mode, returning default players. KV functions are not available. Use wrangler pages dev to test with KV.');
-    return DEFAULT_PLAYERS;
+    // In Vite dev mode, return empty array (players should be managed via KV)
+    console.warn('Running in Vite dev mode, returning empty players list. KV functions are not available. Use wrangler pages dev to test with KV.');
+    return [];
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/players`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(`${API_BASE_URL}/api/players`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
       console.error(`Failed to fetch players from KV: ${response.status}`);
-      // Fallback to default players on API error
-      return DEFAULT_PLAYERS;
+      return [];
     }
+    
     const kvPlayers: Player[] = await response.json();
-
-    // Merge KV players with default players. KV players take precedence.
-    const mergedPlayersMap = new Map<number, Player>();
-
-    // Add default players first
-    DEFAULT_PLAYERS.forEach(p => mergedPlayersMap.set(p.id, p));
-
-    // Add KV players, overwriting default ones if IDs match
-    kvPlayers.forEach(p => mergedPlayersMap.set(p.id, p));
-
-    return Array.from(mergedPlayersMap.values()).sort((a, b) => a.id - b.id);
+    return kvPlayers.sort((a, b) => a.id - b.id);
   } catch (error) {
-    console.warn('Error fetching players from KV, falling back to default:', error);
-    return DEFAULT_PLAYERS;
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.warn('Fetch players timed out');
+    } else {
+      console.warn('Error fetching players from KV:', error);
+    }
+    return [];
   }
 }
 
@@ -67,16 +70,46 @@ export async function updatePlayer(id: number, updates: { name: string; number: 
   if (isViteDevMode()) {
     throw new Error('Player updates are not supported in Vite dev mode. Use "wrangler pages dev dist --port 5174" to test with KV.');
   }
-  const response = await fetch(`${API_BASE_URL}/api/players/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updates),
-  });
-  if (!response.ok) {
-    const errorBody = await response.json();
-    throw new Error(errorBody.error || 'Failed to update player.');
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(`${API_BASE_URL}/api/players/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      let errorMessage = `Failed to update player: ${response.status}`;
+      try {
+        const errorJson = await response.json();
+        if (errorJson.error) {
+          errorMessage = errorJson.error;
+          if (errorJson.details) {
+            errorMessage += ` - ${errorJson.details}`;
+          }
+        } else if (typeof errorJson === 'string') {
+          errorMessage = errorJson;
+        }
+      } catch (e) {
+        const errorText = await response.text();
+        if (errorText) {
+          errorMessage = errorText;
+        }
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error updating player:', error);
+    throw error;
   }
-  return response.json();
 }
 
 // Delete a player

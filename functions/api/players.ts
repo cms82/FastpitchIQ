@@ -8,22 +8,7 @@ interface Player {
   number: number;
 }
 
-// Default players (fallback if KV is empty)
-const DEFAULT_PLAYERS: Player[] = [
-  { id: 1, name: 'Grace', number: 0 },      // Jersey 00
-  { id: 2, name: 'Madelyn', number: 0 },    // Jersey 0
-  { id: 3, name: 'Kennedy', number: 1 },
-  { id: 4, name: 'Carly', number: 4 },
-  { id: 5, name: 'Presley', number: 8 },
-  { id: 6, name: 'Brielle', number: 10 },
-  { id: 7, name: 'Kate', number: 15 },
-  { id: 8, name: 'Mikayla', number: 21 },
-  { id: 9, name: 'Jamie', number: 29 },
-  { id: 10, name: 'Macie', number: 43 },
-  { id: 11, name: 'Zoë', number: 44 },
-];
-
-// GET /api/players - List all players
+// GET /api/players - List all players from KV only
 export const onRequestGet = async (context: { request: Request; env: Env }) => {
   const { env } = context;
   try {
@@ -31,9 +16,9 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
     const playerIdsString = await env.PLAYERS_KV.get(listKey);
     const playerIds: number[] = playerIdsString ? JSON.parse(playerIdsString) : [];
 
-    // If no players in KV, return default players
+    // Return empty array if no players in KV
     if (playerIds.length === 0) {
-      return new Response(JSON.stringify(DEFAULT_PLAYERS), {
+      return new Response(JSON.stringify([]), {
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
@@ -51,12 +36,7 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
       }
     }
 
-    // Merge with defaults (defaults take precedence for missing IDs)
-    const playersMap = new Map<number, Player>();
-    DEFAULT_PLAYERS.forEach(p => playersMap.set(p.id, p));
-    players.forEach(p => playersMap.set(p.id, p));
-
-    return new Response(JSON.stringify(Array.from(playersMap.values()).sort((a, b) => a.id - b.id)), {
+    return new Response(JSON.stringify(players.sort((a, b) => a.id - b.id)), {
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',

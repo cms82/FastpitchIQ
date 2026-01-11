@@ -8,7 +8,9 @@
     "preview": "vite preview",
     "dev:kv": "npm run build && npx wrangler pages dev dist --port 5174",
     "seed:scenarios": "node scripts/seed-scenarios.mjs",
-    "seed:upload": "node scripts/seed-scenarios.mjs && npx wrangler kv bulk put --namespace-id=98dff05d785946d0a388c2b7f0a670c2 --remote scripts/scenarios-bulk.json"
+    "seed:upload": "node scripts/seed-scenarios.mjs && npx wrangler kv bulk put --namespace-id=98dff05d785946d0a388c2b7f0a670c2 --remote scripts/scenarios-bulk.json",
+    "seed:players": "node scripts/seed-players.mjs",
+    "seed:players:upload": "node scripts/seed-players.mjs && npx wrangler kv bulk put --namespace-id=98dff05d785946d0a388c2b7f0a670c2 --remote scripts/players-bulk.json"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

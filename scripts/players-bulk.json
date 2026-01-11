@@ -1,0 +1,50 @@
+[
+  {
+    "key": "player:1",
+    "value": "{\"id\":1,\"name\":\"Grace\",\"number\":0}"
+  },
+  {
+    "key": "player:2",
+    "value": "{\"id\":2,\"name\":\"Madelyn\",\"number\":0}"
+  },
+  {
+    "key": "player:3",
+    "value": "{\"id\":3,\"name\":\"Kennedy\",\"number\":1}"
+  },
+  {
+    "key": "player:4",
+    "value": "{\"id\":4,\"name\":\"Carly\",\"number\":4}"
+  },
+  {
+    "key": "player:5",
+    "value": "{\"id\":5,\"name\":\"Presley\",\"number\":8}"
+  },
+  {
+    "key": "player:6",
+    "value": "{\"id\":6,\"name\":\"Brielle\",\"number\":10}"
+  },
+  {
+    "key": "player:7",
+    "value": "{\"id\":7,\"name\":\"Kate\",\"number\":15}"
+  },
+  {
+    "key": "player:8",
+    "value": "{\"id\":8,\"name\":\"Mikayla\",\"number\":21}"
+  },
+  {
+    "key": "player:9",
+    "value": "{\"id\":9,\"name\":\"Jamie\",\"number\":29}"
+  },
+  {
+    "key": "player:10",
+    "value": "{\"id\":10,\"name\":\"Macie\",\"number\":43}"
+  },
+  {
+    "key": "player:11",
+    "value": "{\"id\":11,\"name\":\"Zoë\",\"number\":44}"
+  },
+  {
+    "key": "players:list",
+    "value": "[1,2,3,4,5,6,7,8,9,10,11]"
+  }
+]
