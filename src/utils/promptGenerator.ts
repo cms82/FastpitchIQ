@@ -67,7 +67,9 @@ function generateOnePositionPrompts(
       scenarioId: scenario.id,
       role: selectedPosition,
       questionType,
-      correctAnswer: questionType === 'primary' ? roleDef.primaryIntent : roleDef.fielderAction!,
+      // For fielderAction questions, the correct answer is always the primaryIntent (e.g., "Field It")
+      // The fielderAction is used to determine the question type, but primaryIntent is the answer
+      correctAnswer: roleDef.primaryIntent,
       options: [], // Will be filled by answerGenerator
       correctIndex: 0, // Will be set by answerGenerator
     });
@@ -182,7 +184,9 @@ function generateWholeFieldPrompts(scenario: Scenario): Prompt[] {
       scenarioId: scenario.id,
       role: candidate.role,
       questionType,
-      correctAnswer: questionType === 'primary' ? roleDef.primaryIntent : roleDef.fielderAction!,
+      // For fielderAction questions, the correct answer is always the primaryIntent (e.g., "Field It")
+      // The fielderAction is used to determine the question type, but primaryIntent is the answer
+      correctAnswer: roleDef.primaryIntent,
       options: [],
       correctIndex: 0,
     });

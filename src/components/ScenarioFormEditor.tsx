@@ -156,7 +156,7 @@ export default function ScenarioFormEditor({ scenario, onSave, onCancel, saving 
     }
   };
 
-  const toggleDistractor = (position: Position, pool: 'distractorPoolHigh' | 'distractorPoolLow', value: PrimaryIntent) => {
+  const toggleDistractor = (position: Position, pool: 'distractorPoolHigh' | 'distractorPoolLow', value: PrimaryIntent | FielderAction) => {
     const currentPool = formData.roles[position]?.[pool] || [];
     const newPool = currentPool.includes(value)
       ? currentPool.filter((v) => v !== value)
@@ -563,49 +563,109 @@ export default function ScenarioFormEditor({ scenario, onSave, onCancel, saving 
                     <div className="space-y-3">
                       <div className="space-y-1">
                         <label className="text-xs font-medium text-muted-foreground">High Priority Distractors</label>
-                        <div className="flex flex-wrap gap-2">
-                          {PRIMARY_INTENTS.filter(intent => intent !== role.primaryIntent).map(intent => {
-                            const pool = role.distractorPoolHigh || [];
-                            const isSelected = pool.includes(intent);
-                            return (
-                              <button
-                                key={intent}
-                                type="button"
-                                onClick={() => toggleDistractor(position, 'distractorPoolHigh', intent)}
-                                className={`px-3 py-1.5 text-xs rounded-lg border transition-colors font-medium ${
-                                  isSelected
-                                    ? 'bg-primary text-primary-foreground border-primary'
-                                    : 'border-border text-card-foreground hover:bg-secondary'
-                                }`}
-                              >
-                                {intent}
-                              </button>
-                            );
-                          })}
+                        <div className="space-y-2">
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">Primary Intents:</div>
+                            <div className="flex flex-wrap gap-2">
+                              {PRIMARY_INTENTS.filter(intent => intent !== role.primaryIntent).map(intent => {
+                                const pool = role.distractorPoolHigh || [];
+                                const isSelected = pool.includes(intent);
+                                return (
+                                  <button
+                                    key={intent}
+                                    type="button"
+                                    onClick={() => toggleDistractor(position, 'distractorPoolHigh', intent)}
+                                    className={`px-3 py-1.5 text-xs rounded-lg border transition-colors font-medium ${
+                                      isSelected
+                                        ? 'bg-primary text-primary-foreground border-primary'
+                                        : 'border-border text-card-foreground hover:bg-secondary'
+                                    }`}
+                                  >
+                                    {intent}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          {role.fielderAction && (
+                            <div>
+                              <div className="text-xs text-muted-foreground mb-1">Fielder Actions:</div>
+                              <div className="flex flex-wrap gap-2">
+                                {FIELDER_ACTIONS.filter(action => action !== role.fielderAction).map(action => {
+                                  const pool = role.distractorPoolHigh || [];
+                                  const isSelected = pool.includes(action);
+                                  return (
+                                    <button
+                                      key={action}
+                                      type="button"
+                                      onClick={() => toggleDistractor(position, 'distractorPoolHigh', action)}
+                                      className={`px-3 py-1.5 text-xs rounded-lg border transition-colors font-medium ${
+                                        isSelected
+                                          ? 'bg-primary text-primary-foreground border-primary'
+                                          : 'border-border text-card-foreground hover:bg-secondary'
+                                      }`}
+                                    >
+                                      {action}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 
                       <div className="space-y-1">
                         <label className="text-xs font-medium text-muted-foreground">Low Priority Distractors</label>
-                        <div className="flex flex-wrap gap-2">
-                          {PRIMARY_INTENTS.filter(intent => intent !== role.primaryIntent).map(intent => {
-                            const pool = role.distractorPoolLow || [];
-                            const isSelected = pool.includes(intent);
-                            return (
-                              <button
-                                key={intent}
-                                type="button"
-                                onClick={() => toggleDistractor(position, 'distractorPoolLow', intent)}
-                                className={`px-3 py-1.5 text-xs rounded-lg border transition-colors font-medium ${
-                                  isSelected
-                                    ? 'bg-primary text-primary-foreground border-primary'
-                                    : 'border-border text-card-foreground hover:bg-secondary'
-                                }`}
-                              >
-                                {intent}
-                              </button>
-                            );
-                          })}
+                        <div className="space-y-2">
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">Primary Intents:</div>
+                            <div className="flex flex-wrap gap-2">
+                              {PRIMARY_INTENTS.filter(intent => intent !== role.primaryIntent).map(intent => {
+                                const pool = role.distractorPoolLow || [];
+                                const isSelected = pool.includes(intent);
+                                return (
+                                  <button
+                                    key={intent}
+                                    type="button"
+                                    onClick={() => toggleDistractor(position, 'distractorPoolLow', intent)}
+                                    className={`px-3 py-1.5 text-xs rounded-lg border transition-colors font-medium ${
+                                      isSelected
+                                        ? 'bg-primary text-primary-foreground border-primary'
+                                        : 'border-border text-card-foreground hover:bg-secondary'
+                                    }`}
+                                  >
+                                    {intent}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          {role.fielderAction && (
+                            <div>
+                              <div className="text-xs text-muted-foreground mb-1">Fielder Actions:</div>
+                              <div className="flex flex-wrap gap-2">
+                                {FIELDER_ACTIONS.filter(action => action !== role.fielderAction).map(action => {
+                                  const pool = role.distractorPoolLow || [];
+                                  const isSelected = pool.includes(action);
+                                  return (
+                                    <button
+                                      key={action}
+                                      type="button"
+                                      onClick={() => toggleDistractor(position, 'distractorPoolLow', action)}
+                                      className={`px-3 py-1.5 text-xs rounded-lg border transition-colors font-medium ${
+                                        isSelected
+                                          ? 'bg-primary text-primary-foreground border-primary'
+                                          : 'border-border text-card-foreground hover:bg-secondary'
+                                      }`}
+                                    >
+                                      {action}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

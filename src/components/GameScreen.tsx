@@ -1,13 +1,12 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useGameState } from '../hooks/useGameState';
-import { getRandomScenario } from '../utils/scenarioEngine';
 import { useState, useEffect } from 'react';
 import Field from './Field';
 import AnswerButtons from './AnswerButtons';
 import FeedbackOverlay from './FeedbackOverlay';
 import SituationHeader from './SituationHeader';
 import PlayerDisplay from './PlayerDisplay';
-import { GameMode } from '../types';
+import { GameMode, Scenario } from '../types';
 import { Trophy, Clock, AlertTriangle } from 'lucide-react';
 import { getPlayerId, getOverallStats } from '../utils/localStorage';
 import { syncStatsToLeaderboard } from '../utils/leaderboard';
@@ -21,19 +20,39 @@ export default function GameScreen() {
   const selectedPositionRaw = searchParams.get('position');
   const selectedPosition = selectedPositionRaw ? decodeURIComponent(selectedPositionRaw) : null;
 
-  // Debug logging
+  // Debug logging - log immediately on render
+  console.log('[GameScreen] Component rendering - Mode:', mode, 'URL:', window.location.href, 'Position:', selectedPosition, 'Learning:', learningMode, 'SearchParams:', Array.from(searchParams.entries()));
+  
+  // Debug logging in useEffect
   useEffect(() => {
-    console.log('GameScreen loaded - Mode:', mode, 'Position:', selectedPosition, 'Learning:', learningMode);
+    console.log('[GameScreen] useEffect - Mode:', mode, 'Position:', selectedPosition, 'Learning:', learningMode);
   }, [mode, selectedPosition, learningMode]);
   
-  const [scenario] = useState(() => {
-    try {
-      return getRandomScenario();
-    } catch (error) {
-      console.error('Failed to load scenario:', error);
-      return null;
-    }
-  });
+  const [scenario, setScenario] = useState<Scenario | null>(null);
+  const [scenarioLoading, setScenarioLoading] = useState(true);
+
+  // Load scenarios from KV only
+  useEffect(() => {
+    const loadScenario = async () => {
+      try {
+        const { loadScenariosAsync, getRandomScenario } = await import('../utils/scenarioEngine');
+        const allScenarios = await loadScenariosAsync(); // Load from KV only
+        if (allScenarios.length === 0) {
+          console.error('No scenarios found in KV.');
+          setScenario(null);
+          return;
+        }
+        const randomScenario = getRandomScenario(allScenarios); // Pass scenarios array
+        setScenario(randomScenario);
+      } catch (error) {
+        console.error('Failed to load scenario:', error);
+        setScenario(null);
+      } finally {
+        setScenarioLoading(false);
+      }
+    };
+    loadScenario();
+  }, []);
   
   // Validate routing and redirect if needed (using useEffect to avoid render-time navigation)
   useEffect(() => {
@@ -55,90 +74,66 @@ export default function GameScreen() {
 
       // For my_positions mode, check if position is provided
       if (mode === 'my_positions') {
-        // Try multiple ways to get position
+        // Try multiple ways to get position - check URL directly first (most reliable)
+        const currentUrl = new URL(window.location.href);
+        const posFromUrl = currentUrl.searchParams.get('position');
         const posFromSearchParams = searchParams.get('position');
         const posFromSelected = selectedPosition;
-        const position = posFromSearchParams || posFromSelected;
+        const position = posFromUrl || posFromSearchParams || posFromSelected;
         
         if (!position) {
-          // Double-check URL search params one more time
-          const currentUrl = new URL(window.location.href);
-          const posFromUrl = currentUrl.searchParams.get('position');
-          
-          if (!posFromUrl) {
-            console.error('GameScreen: Missing position for my_positions mode. Search params:', Array.from(searchParams.entries()), 'Current URL:', window.location.href);
-            // Only redirect if we're absolutely sure the position is missing
-            navigate('/', { replace: true });
-            return;
-          } else {
-            // Position exists in URL but wasn't parsed yet - don't redirect, it will be available on next render
-            console.log('GameScreen: Position found in URL but not parsed yet:', posFromUrl);
-            return;
-          }
+          // Position truly doesn't exist - wait a bit more for React Router to parse
+          console.warn('GameScreen: Position not found yet. URL:', window.location.href, 'Search params:', Array.from(searchParams.entries()));
+          // Don't redirect immediately - give it more time for params to be parsed
+          // The validation will run again on the next render cycle
+          return;
         } else {
           // Position is available - validate it's a valid position
           const validPositions = ['P', 'C', '1B', '2B', 'SS', '3B', 'LF', 'CF', 'RF'];
-          if (!validPositions.includes(position)) {
-            console.error('GameScreen: Invalid position value:', position);
+          const decodedPosition = decodeURIComponent(position);
+          if (!validPositions.includes(decodedPosition)) {
+            console.error('GameScreen: Invalid position value:', decodedPosition);
             navigate('/', { replace: true });
             return;
           }
         }
       }
-    }, 300); // Increased delay for mobile parsing
+    }, 500); // Increased delay to 500ms for better mobile/React Router compatibility
 
     return () => clearTimeout(timeoutId);
   }, [mode, selectedPosition, navigate, searchParams]);
 
-  if (!scenario) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-muted-foreground">Failed to load game. Please refresh the page.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Validate mode
-  if (!mode || (mode !== 'my_positions' && mode !== 'whole_field')) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
-    );
-  }
-
-  // Validate position for my_positions mode - but be more lenient during initial load
-  if (mode === 'my_positions') {
-    // Check both selectedPosition and searchParams to handle timing issues
-    const posFromParams = searchParams.get('position');
-    const position = selectedPosition || posFromParams;
-    
-    // Only show loading if we're still waiting for position AND we've given it time
-    // This prevents immediate redirect before URL params are parsed
-    if (!position) {
-      // Check if position is in the URL directly
-      const urlParams = new URLSearchParams(window.location.search);
-      const posFromUrl = urlParams.get('position');
-      
-      if (!posFromUrl) {
-        // Position truly doesn't exist - show loading briefly, validation useEffect will redirect if needed
-        return (
-          <div className="min-h-screen bg-white flex items-center justify-center">
-            <div className="text-center space-y-2">
-              <div className="text-muted-foreground">Loading position...</div>
-            </div>
-          </div>
-        );
-      }
+  // Handle invalid mode redirect using useEffect (outside conditional)
+  useEffect(() => {
+    if (mode && mode !== 'my_positions' && mode !== 'whole_field') {
+      console.error('[GameScreen] Invalid mode:', mode, 'Redirecting to home');
+      navigate('/', { replace: true });
     }
-  }
-  
+  }, [mode, navigate]);
+
+  // IMPORTANT: All hooks must be called unconditionally before any early returns
+  // Call useGameState even if scenario is null (it will handle null scenario)
   const { gameState, currentPrompt, showFeedback, roundComplete, handleAnswer, advanceToNext } =
-    useGameState(scenario, mode, practiceWeakSpots, learningMode, selectedPosition);
+    useGameState(scenario, mode || 'whole_field', practiceWeakSpots, learningMode, selectedPosition);
+
+  // Debug logging for game state - log when gameState changes
+  // MUST be called before any early returns
+  useEffect(() => {
+    console.log('[GameScreen] Game state updated (useEffect):', {
+      promptsLength: gameState.prompts.length,
+      currentPromptIndex: gameState.currentPromptIndex,
+      currentPrompt: currentPrompt ? `exists (${currentPrompt.role})` : 'null',
+      roundComplete,
+      willShowGame: currentPrompt !== null,
+    });
+    
+    if (gameState.prompts.length > 0 && currentPrompt) {
+      console.log('[GameScreen] ✅ Should be showing game now!');
+    }
+  }, [gameState.prompts.length, gameState.currentPromptIndex, currentPrompt, roundComplete]);
 
   // Sync stats to leaderboard when round completes (both practice and competition modes)
+  // MUST be called before any early returns
   useEffect(() => {
     if (roundComplete) {
       const playerId = getPlayerId();
@@ -167,6 +162,63 @@ export default function GameScreen() {
       }
     }
   }, [roundComplete, gameState.roundStats, learningMode, mode]);
+
+  // Show loading while scenario is being loaded
+  if (scenarioLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading game...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!scenario) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">Failed to load game. Please refresh the page.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Validate mode - but be lenient during initial load
+  if (!mode) {
+    console.log('[GameScreen] Mode not parsed yet, showing loading...');
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-muted-foreground">Loading game mode...</div>
+      </div>
+    );
+  }
+  
+  if (mode !== 'my_positions' && mode !== 'whole_field') {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-muted-foreground">Invalid game mode. Redirecting...</div>
+      </div>
+    );
+  }
+
+  // Validate position for my_positions mode - but be more lenient during initial load
+  if (mode === 'my_positions') {
+    // Check both selectedPosition and searchParams to handle timing issues
+    const posFromParams = searchParams.get('position');
+    const position = selectedPosition || posFromParams;
+    
+    // Only show loading if we're still waiting for position AND we've given it time
+    // This prevents immediate redirect before URL params are parsed
+    if (!position) {
+      // Check if position is in the URL directly - be lenient, let useEffect handle validation
+      // Don't return early here - allow component to render and let validation useEffect handle it
+      // The useEffect will redirect if position is truly missing after waiting for params to parse
+    }
+  }
+  
+  // Debug logging on every render
+  console.log('[GameScreen] Render - prompts:', gameState.prompts.length, 'currentPrompt:', currentPrompt ? `exists (${currentPrompt.role})` : 'null', 'willRenderGame:', !!currentPrompt);
 
   if (roundComplete) {
     const { correct, incorrect, totalTime, responses } = gameState.roundStats;

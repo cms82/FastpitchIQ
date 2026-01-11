@@ -40,19 +40,79 @@ export function generateAnswers(
 
   // Get distractors based on question type
   let distractors: AnswerOption[];
-  if (prompt.questionType === 'primary') {
-    distractors = getPrimaryDistractors(roleDef, correctAnswer as PrimaryIntent);
-  } else {
-    distractors = getFielderActionDistractors(roleDef, correctAnswer as FielderAction);
+  try {
+    if (prompt.questionType === 'primary') {
+      distractors = getPrimaryDistractors(roleDef, correctAnswer as PrimaryIntent);
+    } else {
+      console.log('[generateAnswers] Getting fielder action distractors for:', correctAnswer, 'roleDef:', roleDef);
+      distractors = getFielderActionDistractors(roleDef, correctAnswer as FielderAction);
+      console.log('[generateAnswers] Got distractors:', distractors.length);
+    }
+  } catch (error) {
+    console.error('[generateAnswers] Error getting distractors:', error);
+    throw error;
   }
 
   // Ensure we have exactly 3 distractors
-  while (distractors.length < 3) {
+  let distractorAttempts = 0;
+  const maxDistractorAttempts = 10; // Prevent infinite loop
+  while (distractors.length < 3 && distractorAttempts < maxDistractorAttempts) {
     const fallback = getFallbackDistractors(prompt.questionType, correctAnswer);
     if (!distractors.includes(fallback)) {
       distractors.push(fallback);
+    } else {
+      distractorAttempts++;
+      // If we can't find a unique fallback, break to avoid infinite loop
+      // We'll handle this case below
+      if (distractorAttempts >= 5) {
+        console.warn('[generateAnswers] Could not find enough unique distractors, using what we have');
+        break;
+      }
     }
   }
+  
+  // If we still don't have 3, use all available options (except correct answer)
+  if (distractors.length < 3) {
+    console.log('[generateAnswers] Only have', distractors.length, 'distractors, filling with all available options');
+    if (prompt.questionType === 'fielderAction') {
+      // For fielderAction, use only FielderAction values that are in the distractor pools
+      // Don't automatically add all available FielderAction values - respect what's in the pools
+      const poolFielderActions = [
+        ...(roleDef.distractorPoolHigh || []),
+        ...(roleDef.distractorPoolLow || [])
+      ].filter((d): d is FielderAction => 
+        typeof d === 'string' && Object.values(FielderAction).includes(d as FielderAction) && d !== correctAnswer
+      );
+      
+      // Add any FielderAction values from pools that aren't already in distractors
+      for (const action of poolFielderActions) {
+        if (!distractors.includes(action) && distractors.length < 3) {
+          distractors.push(action);
+        }
+      }
+      
+      // If we still don't have 3 distractors, use primary intents as additional distractors to get to 4 total options
+      if (distractors.length < 3) {
+        console.log('[generateAnswers] FielderAction has limited options, adding primary intents as distractors');
+        const primaryIntents = Object.values(PrimaryIntent).filter(i => !distractors.includes(i));
+        while (distractors.length < 3 && primaryIntents.length > 0) {
+          const intent = primaryIntents.shift();
+          if (intent && !distractors.includes(intent)) {
+            distractors.push(intent);
+          }
+        }
+      }
+    } else {
+      const allIntents = Object.values(PrimaryIntent).filter(i => i !== correctAnswer && !distractors.includes(i));
+      while (distractors.length < 3 && allIntents.length > 0) {
+        const intent = allIntents.shift();
+        if (intent && !distractors.includes(intent)) {
+          distractors.push(intent);
+        }
+      }
+    }
+  }
+  
   distractors = distractors.slice(0, 3);
 
   // Create options array: correct + 3 distractors
@@ -234,9 +294,27 @@ function enforceUniqueness(options: AnswerOption[], correctAnswer: AnswerOption)
       unique.push(fallback);
       seen.add(fallback);
     } else {
-      // If all fallbacks are used, we need to break the loop
-      // This shouldn't happen in practice, but handle it gracefully
-      break;
+      // If all fallbacks are used, try to use any available option that's not already in unique
+      const allPossibleOptions = questionType === 'primary' ? Object.values(PrimaryIntent) : Object.values(FielderAction);
+      const unusedOption = allPossibleOptions.find(opt => !seen.has(opt));
+      if (unusedOption) {
+        unique.push(unusedOption);
+        seen.add(unusedOption);
+      } else {
+        // If still not enough, allow mixing types for fielderAction questions to get to 4 options
+        if (questionType === 'fielderAction' && unique.length < 4) {
+          const primaryIntents = Object.values(PrimaryIntent).filter(i => !seen.has(i));
+          if (primaryIntents.length > 0) {
+            const intent = primaryIntents[0];
+            unique.push(intent);
+            seen.add(intent);
+          } else {
+            break;
+          }
+        } else {
+          break;
+        }
+      }
     }
   }
 

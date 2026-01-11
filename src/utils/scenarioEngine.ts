@@ -1,7 +1,7 @@
 import { Scenario, BallZone, RoleDefinition } from '../types';
 import { Position } from '../constants';
 import { ballZoneCoordinates } from '../constants';
-import scenariosData from '../content/scenarios.json';
+import { fetchScenarios } from './scenarios';
 
 // Validate scenario structure
 function validateScenario(scenario: any): scenario is Scenario {
@@ -73,60 +73,78 @@ function validateScenario(scenario: any): scenario is Scenario {
 }
 
 let loadedScenarios: Scenario[] | null = null;
+let kvScenariosCache: Scenario[] | null = null;
 
+// Load scenarios from KV only (no static scenarios)
+export async function loadScenariosAsync(): Promise<Scenario[]> {
+  try {
+    // Load from KV only
+    const kvScenarios = await fetchScenarios();
+    
+    if (kvScenarios.length === 0) {
+      console.warn('No scenarios found in KV');
+      return [];
+    }
+    
+    // Validate and cache KV scenarios
+    const validated: Scenario[] = [];
+    for (const scenario of kvScenarios) {
+      try {
+        validateScenario(scenario);
+        validated.push(scenario);
+      } catch (error) {
+        console.error('KV scenario validation error:', error);
+        // Skip invalid KV scenarios
+      }
+    }
+    
+    if (validated.length === 0) {
+      throw new Error('No valid scenarios found in KV');
+    }
+    
+    kvScenariosCache = validated;
+    return validated;
+  } catch (error) {
+    console.error('Failed to load scenarios from KV:', error);
+    throw error;
+  }
+}
+
+// Synchronous version for backwards compatibility (uses cached KV scenarios if available)
 export function loadScenarios(): Scenario[] {
   if (loadedScenarios) {
     return loadedScenarios;
   }
 
-  try {
-    // Always use static JSON for now - KV scenarios will be merged in later if needed
-    const scenarios = scenariosData as Scenario[];
-    const validated: Scenario[] = [];
-
-    for (const scenario of scenarios) {
-      try {
-        validateScenario(scenario);
-        validated.push(scenario);
-      } catch (error) {
-        if (process.env.NODE_ENV !== 'production') {
-          throw error;
-        } else {
-          console.error('Content validation error:', error);
-          // In prod, skip invalid scenarios but don't crash
-        }
-      }
-    }
-
-    if (validated.length === 0) {
-      throw new Error('No valid scenarios found');
-    }
-
-    loadedScenarios = validated;
-    return validated;
-  } catch (error) {
-    if (process.env.NODE_ENV !== 'production') {
-      throw error;
-    } else {
-      // In prod, show error screen (handled by component)
-      throw new Error('Failed to load scenarios');
-    }
+  // Use cached KV scenarios if available
+  if (kvScenariosCache) {
+    loadedScenarios = kvScenariosCache;
+    return loadedScenarios;
   }
+
+  // If no cache, return empty array (scenarios should be loaded async first)
+  console.warn('Scenarios not loaded yet. Call loadScenariosAsync() first.');
+  return [];
 }
 
 // Export function to reload scenarios (useful after admin edits)
-export function reloadScenarios(): void {
+export async function reloadScenarios(): Promise<void> {
   loadedScenarios = null;
-  loadScenarios();
+  kvScenariosCache = null;
+  // Pre-load KV scenarios for next use
+  await loadScenariosAsync();
 }
 
-export function getRandomScenario(): Scenario {
-  const scenarios = loadScenarios();
+export function getRandomScenario(allScenarios?: Scenario[]): Scenario {
+  const scenarios = allScenarios || loadScenarios();
+  if (scenarios.length === 0) {
+    throw new Error('No scenarios available to pick from.');
+  }
   const randomIndex = Math.floor(Math.random() * scenarios.length);
   return scenarios[randomIndex];
 }
 
-export function getScenarioById(id: string): Scenario | undefined {
-  const scenarios = loadScenarios();
+export function getScenarioById(id: string, allScenarios?: Scenario[]): Scenario | undefined {
+  const scenarios = allScenarios || loadScenarios();
   return scenarios.find((s) => s.id === id);
 }

@@ -13,12 +13,14 @@ import {
 const TIMER_DURATION = 10000; // 10 seconds
 
 export function useGameState(
-  scenario: Scenario,
+  scenario: Scenario | null,
   mode: GameMode,
   practiceWeakSpots: boolean = false,
   learningMode: boolean = false,
   selectedPosition?: string | null
 ) {
+  // CRITICAL: All hooks must be called unconditionally before any early returns
+  // This ensures hooks are always called in the same order
   const [gameState, setGameState] = useState<GameState>({
     currentScenario: scenario,
     prompts: [],
@@ -42,6 +44,11 @@ export function useGameState(
 
   // Initialize prompts
   useEffect(() => {
+    // Don't initialize if scenario is null
+    if (!scenario) {
+      return;
+    }
+    
     try {
       const position = mode === 'my_positions' && selectedPosition ? (selectedPosition as Position) : null;
       
@@ -60,21 +67,46 @@ export function useGameState(
         practiceWeakSpots
       );
 
-      console.log('Generated prompts:', prompts.length);
+      console.log('Generated prompts:', prompts.length, 'scenario:', scenario.id, 'roles:', Object.keys(scenario.roles));
 
       // Generate answers for all prompts
-      const promptsWithAnswers = prompts.map((p) => generateAnswers(p, scenario, roundState));
+      let promptsWithAnswers;
+      try {
+        console.log('[useGameState] About to generate answers, roundState:', roundState);
+        promptsWithAnswers = prompts.map((p, index) => {
+          try {
+            console.log(`[useGameState] Generating answers for prompt ${index}:`, p.role, p.questionType, 'role exists:', !!scenario.roles[p.role]);
+            if (!scenario.roles[p.role]) {
+              throw new Error(`Role ${p.role} not found in scenario ${scenario.id}`);
+            }
+            const result = generateAnswers(p, scenario, roundState);
+            console.log(`[useGameState] Generated answers for prompt ${index}:`, result.options.length, 'options');
+            return result;
+          } catch (error) {
+            console.error(`[useGameState] Error generating answers for prompt ${index}:`, p, error);
+            throw error;
+          }
+        });
+        console.log('[useGameState] Generated prompts with answers:', promptsWithAnswers.length);
+      } catch (error) {
+        console.error('[useGameState] Failed to generate answers:', error);
+        console.error('[useGameState] Error stack:', error instanceof Error ? error.stack : 'No stack');
+        throw error;
+      }
 
-      console.log('Generated prompts with answers:', promptsWithAnswers.length);
-
-      setGameState((prev) => ({
-        ...prev,
-        prompts: promptsWithAnswers,
-        currentPromptIndex: 0,
-        timerActive: !learningMode,
-        timerRemaining: TIMER_DURATION,
-      }));
+      setGameState((prev) => {
+        const newState = {
+          ...prev,
+          prompts: promptsWithAnswers,
+          currentPromptIndex: 0,
+          timerActive: !learningMode,
+          timerRemaining: TIMER_DURATION,
+        };
+        console.log('[useGameState] Setting game state with prompts:', promptsWithAnswers.length, 'first prompt:', promptsWithAnswers[0]?.role);
+        return newState;
+      });
       setPromptStartTime(Date.now());
+      console.log('[useGameState] State update queued');
     } catch (error) {
       console.error('Failed to initialize prompts:', error);
       // Set empty prompts to prevent infinite loading
@@ -87,7 +119,7 @@ export function useGameState(
   }, [scenario, mode, practiceWeakSpots, learningMode, selectedPosition]);
 
   const handleTimeout = useCallback(() => {
-    if (learningMode) return; // No timeout in learning mode
+    if (learningMode || !scenario) return; // No timeout in learning mode or if scenario is null
     setGameState((prev) => {
       const currentPrompt = prev.prompts[prev.currentPromptIndex];
       if (!currentPrompt) return prev;
@@ -154,7 +186,7 @@ export function useGameState(
 
   const handleAnswer = useCallback(
     (option: AnswerOption, index: number) => {
-      if (showFeedback) return;
+      if (showFeedback || !scenario) return;
 
       const currentPrompt = gameState.prompts[gameState.currentPromptIndex];
       if (!currentPrompt) return;
@@ -230,6 +262,39 @@ export function useGameState(
   }, [gameState.currentPromptIndex, gameState.prompts.length, learningMode]);
 
   const currentPrompt = gameState.prompts[gameState.currentPromptIndex] || null;
+  
+  // Debug logging when currentPrompt becomes available
+  useEffect(() => {
+    if (currentPrompt) {
+      console.log('[useGameState] currentPrompt is now available:', currentPrompt.role, currentPrompt.questionType);
+    }
+  }, [currentPrompt]);
+
+  // Handle null scenario by returning default state
+  // But all hooks have already been called above, so this is safe
+  if (!scenario) {
+    return {
+      gameState: {
+        currentScenario: null as any,
+        prompts: [],
+        currentPromptIndex: 0,
+        selectedAnswer: null,
+        timerActive: false,
+        timerRemaining: TIMER_DURATION,
+        roundStats: {
+          correct: 0,
+          incorrect: 0,
+          totalTime: 0,
+          responses: [],
+        },
+      },
+      currentPrompt: null,
+      showFeedback: false,
+      roundComplete: false,
+      handleAnswer: () => {},
+      advanceToNext: () => {},
+    };
+  }
 
   return {
     gameState,
