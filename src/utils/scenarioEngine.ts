@@ -76,8 +76,19 @@ let loadedScenarios: Scenario[] | null = null;
 let kvScenariosCache: Scenario[] | null = null;
 
 // Load scenarios from KV only (no static scenarios)
-export async function loadScenariosAsync(): Promise<Scenario[]> {
+export async function loadScenariosAsync(forceReload: boolean = false): Promise<Scenario[]> {
   try {
+    // If forceReload is true, clear cache first
+    if (forceReload) {
+      kvScenariosCache = null;
+      loadedScenarios = null;
+    }
+    
+    // If we have a valid cache and not forcing reload, return it
+    if (kvScenariosCache && !forceReload) {
+      return kvScenariosCache;
+    }
+    
     // Load from KV only
     const kvScenarios = await fetchScenarios();
     

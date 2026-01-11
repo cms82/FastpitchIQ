@@ -28,6 +28,7 @@ export async function fetchScenarios(): Promise<Scenario[]> {
         'Content-Type': 'application/json',
       },
       signal: controller.signal,
+      cache: 'no-store', // Don't cache - always fetch fresh scenarios
     });
 
     clearTimeout(timeoutId);

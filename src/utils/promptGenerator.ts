@@ -1,4 +1,5 @@
 import { Scenario, Prompt, Position, GameMode, QuestionType } from '../types';
+import { PrimaryIntent, FielderAction } from '../constants';
 import { getLastAskedAt } from './localStorage';
 import { getTopWeakSpots } from './localStorage';
 
@@ -12,45 +13,57 @@ interface PromptCandidate {
 }
 
 export function generatePrompts(
-  scenario: Scenario,
+  scenarios: Scenario | Scenario[],
   mode: GameMode,
   selectedPosition?: Position | null,
   practiceWeakSpots: boolean = false
 ): Prompt[] {
+  // Normalize to array
+  const allScenarios = Array.isArray(scenarios) ? scenarios : [scenarios];
+  
+  if (allScenarios.length === 0) {
+    throw new Error('No scenarios provided');
+  }
+
   if (practiceWeakSpots) {
-    return generateWeakSpotsPrompts(scenario);
+    // For weak spots, use all scenarios to find roles
+    return generateWeakSpotsPrompts(allScenarios);
   }
 
   if (mode === 'my_positions') {
-    return generateOnePositionPrompts(scenario, selectedPosition);
+    return generateOnePositionPrompts(allScenarios, selectedPosition);
   } else {
-    return generateWholeFieldPrompts(scenario);
+    return generateWholeFieldPrompts(allScenarios);
   }
 }
 
 function generateOnePositionPrompts(
-  scenario: Scenario,
+  allScenarios: Scenario[],
   selectedPosition?: Position | null
 ): Prompt[] {
   if (!selectedPosition) {
     throw new Error('Position required for One Position mode');
   }
 
-  if (!scenario.roles[selectedPosition as Position]) {
-    throw new Error(`Selected position ${selectedPosition} is not available in this scenario`);
+  // Filter scenarios that have the selected position
+  const validScenarios = allScenarios.filter(s => s.roles[selectedPosition as Position]);
+  
+  if (validScenarios.length === 0) {
+    throw new Error(`Selected position ${selectedPosition} is not available in any scenario`);
   }
 
   const prompts: Prompt[] = [];
-  const roleDef = scenario.roles[selectedPosition as Position];
-
-  // Generate 6 prompts all for the same position
-  // Mix of primary intent and fielderAction (if available)
   let fielderActionUsed = false;
-  const canUseFielderAction = roleDef.fielderAction && roleDef.primaryIntent === 'FIELD';
 
+  // Generate 6 prompts, mixing scenarios
   for (let i = 0; i < PROMPTS_PER_ROUND; i++) {
+    // Select a random scenario that has this position
+    const scenario = validScenarios[Math.floor(Math.random() * validScenarios.length)];
+    const roleDef = scenario.roles[selectedPosition as Position];
+    
     // Decide question type
     let questionType: QuestionType = 'primary';
+    const canUseFielderAction = roleDef.fielderAction && roleDef.primaryIntent === 'FIELD';
 
     // For fielders, can use fielderAction (at most 1 per round)
     // Use fielderAction for one prompt if available
@@ -78,31 +91,43 @@ function generateOnePositionPrompts(
   return prompts;
 }
 
-function generateWholeFieldPrompts(scenario: Scenario): Prompt[] {
+function generateWholeFieldPrompts(allScenarios: Scenario[]): Prompt[] {
   const prompts: Prompt[] = [];
   const usedRoles = new Set<Position>();
   let fielderActionUsed = false;
 
-  // Hard minimums: must include at least 1 from each group
-  const requiredGroups = [
-    { name: 'ballSide', roles: scenario.roleGroups.ballSide },
-    { name: 'infieldCore', roles: scenario.roleGroups.infieldCore },
-    { name: 'coverage', roles: scenario.roleGroups.coverage },
-  ];
-
-  // Fill required groups first
-  for (const group of requiredGroups) {
-    const available = group.roles.filter(
-      (role) => scenario.roles[role as Position] && !usedRoles.has(role)
+  // Collect all required groups from all scenarios
+  const allRequiredGroups: Array<{ name: string; roles: Position[]; scenario: Scenario }> = [];
+  for (const scenario of allScenarios) {
+    allRequiredGroups.push(
+      { name: 'ballSide', roles: scenario.roleGroups.ballSide, scenario },
+      { name: 'infieldCore', roles: scenario.roleGroups.infieldCore, scenario },
+      { name: 'coverage', roles: scenario.roleGroups.coverage, scenario }
     );
-    if (available.length > 0) {
-      const selected = available[Math.floor(Math.random() * available.length)] as Position;
-      usedRoles.add(selected);
-      const roleDef = scenario.roles[selected];
+  }
+
+  // Fill required groups first - try to get at least one from each group type across all scenarios
+  const groupTypes = ['ballSide', 'infieldCore', 'coverage'];
+  for (const groupType of groupTypes) {
+    const groupsOfType = allRequiredGroups.filter(g => g.name === groupType);
+    const availableRoles: Array<{ role: Position; scenario: Scenario }> = [];
+    
+    for (const group of groupsOfType) {
+      for (const role of group.roles) {
+        if (group.scenario.roles[role as Position] && !usedRoles.has(role)) {
+          availableRoles.push({ role: role as Position, scenario: group.scenario });
+        }
+      }
+    }
+    
+    if (availableRoles.length > 0) {
+      const selected = availableRoles[Math.floor(Math.random() * availableRoles.length)];
+      usedRoles.add(selected.role);
+      const roleDef = selected.scenario.roles[selected.role];
 
       prompts.push({
-        scenarioId: scenario.id,
-        role: selected,
+        scenarioId: selected.scenario.id,
+        role: selected.role,
         questionType: 'primary',
         correctAnswer: roleDef.primaryIntent,
         options: [],
@@ -111,22 +136,28 @@ function generateWholeFieldPrompts(scenario: Scenario): Prompt[] {
     }
   }
 
-  // Soft constraint: try to include backup role (~70% of rounds)
+  // Soft constraint: try to include backup role (~70% of rounds) from any scenario
   const shouldIncludeBackup = Math.random() < BACKUP_TARGET_PERCENT;
   if (shouldIncludeBackup && prompts.length < PROMPTS_PER_ROUND) {
-    const backupRoles = scenario.roleGroups.backups.filter(
-      (role) => scenario.roles[role as Position] && !usedRoles.has(role)
-    );
+    const backupRoles: Array<{ role: Position; scenario: Scenario }> = [];
+    for (const scenario of allScenarios) {
+      for (const role of scenario.roleGroups.backups) {
+        if (scenario.roles[role as Position] && !usedRoles.has(role)) {
+          backupRoles.push({ role: role as Position, scenario });
+        }
+      }
+    }
+    
     if (backupRoles.length > 0) {
       // Prefer least recently asked (use timed mode stats for prompt selection)
-      backupRoles.sort((a, b) => getLastAskedAt(a as Position, false) - getLastAskedAt(b as Position, false));
-      const selected = backupRoles[0] as Position;
-      usedRoles.add(selected);
-      const roleDef = scenario.roles[selected];
+      backupRoles.sort((a, b) => getLastAskedAt(a.role, false) - getLastAskedAt(b.role, false));
+      const selected = backupRoles[0];
+      usedRoles.add(selected.role);
+      const roleDef = selected.scenario.roles[selected.role];
 
       prompts.push({
-        scenarioId: scenario.id,
-        role: selected,
+        scenarioId: selected.scenario.id,
+        role: selected.role,
         questionType: 'primary',
         correctAnswer: roleDef.primaryIntent,
         options: [],
@@ -135,29 +166,32 @@ function generateWholeFieldPrompts(scenario: Scenario): Prompt[] {
     }
   }
 
-  // Fill remaining slots using coverage algorithm
+  // Fill remaining slots using coverage algorithm - can use any scenario
   const allPositions: Position[] = ['P', 'C', '1B', '2B', 'SS', '3B', 'LF', 'CF', 'RF'];
-  const candidates: PromptCandidate[] = [];
+  const candidates: Array<PromptCandidate & { scenario: Scenario }> = [];
 
-  for (const position of allPositions) {
-    if (usedRoles.has(position) || !scenario.roles[position as Position]) {
-      continue;
+  for (const scenario of allScenarios) {
+    for (const position of allPositions) {
+      if (usedRoles.has(position) || !scenario.roles[position as Position]) {
+        continue;
+      }
+
+      // Use timed mode stats for prompt selection priority
+      const lastAskedAt = getLastAskedAt(position, false);
+      let priority = lastAskedAt; // Lower timestamp = higher priority
+
+      // Boost recommended roles
+      if (scenario.promptPlan?.recommendedRoles?.includes(position)) {
+        priority -= 1000000; // Boost priority
+      }
+
+      candidates.push({
+        role: position,
+        questionType: 'primary',
+        priority,
+        scenario,
+      });
     }
-
-    // Use timed mode stats for prompt selection priority
-    const lastAskedAt = getLastAskedAt(position, false);
-    let priority = lastAskedAt; // Lower timestamp = higher priority
-
-    // Boost recommended roles
-    if (scenario.promptPlan?.recommendedRoles?.includes(position)) {
-      priority -= 1000000; // Boost priority
-    }
-
-    candidates.push({
-      role: position,
-      questionType: 'primary',
-      priority,
-    });
   }
 
   // Sort by priority (lower = higher priority)
@@ -166,7 +200,7 @@ function generateWholeFieldPrompts(scenario: Scenario): Prompt[] {
   // Fill remaining prompts
   while (prompts.length < PROMPTS_PER_ROUND && candidates.length > 0) {
     const candidate = candidates.shift()!;
-    const roleDef = scenario.roles[candidate.role as Position];
+    const roleDef = candidate.scenario.roles[candidate.role as Position];
 
     // Check if we can use fielderAction for this fielder
     let questionType: QuestionType = 'primary';
@@ -181,7 +215,7 @@ function generateWholeFieldPrompts(scenario: Scenario): Prompt[] {
     }
 
     prompts.push({
-      scenarioId: scenario.id,
+      scenarioId: candidate.scenario.id,
       role: candidate.role,
       questionType,
       // For fielderAction questions, the correct answer is always the primaryIntent (e.g., "Field It")
@@ -190,34 +224,56 @@ function generateWholeFieldPrompts(scenario: Scenario): Prompt[] {
       options: [],
       correctIndex: 0,
     });
+    
+    // Mark this role as used to avoid duplicates
+    usedRoles.add(candidate.role);
   }
 
   return prompts;
 }
 
-function generateWeakSpotsPrompts(scenario: Scenario): Prompt[] {
+function generateWeakSpotsPrompts(allScenarios: Scenario[]): Prompt[] {
   // Use timed mode weak spots for practice (learning mode stats kept separate)
   const weakSpots = getTopWeakSpots(6, false);
   const prompts: Prompt[] = [];
+  
+  // Create a map of scenarios by role availability
+  const scenariosByRole = new Map<Position, Scenario[]>();
+  for (const scenario of allScenarios) {
+    for (const position of Object.keys(scenario.roles) as Position[]) {
+      if (!scenariosByRole.has(position)) {
+        scenariosByRole.set(position, []);
+      }
+      scenariosByRole.get(position)!.push(scenario);
+    }
+  }
 
   for (const spot of weakSpots) {
-    // Only include if this scenario has the role
-    if (!scenario.roles[spot.role]) {
+    // Find a scenario that has this role
+    const scenariosWithRole = scenariosByRole.get(spot.role as Position);
+    if (!scenariosWithRole || scenariosWithRole.length === 0) {
       continue;
     }
+    
+    // Select a random scenario that has this role
+    const scenario = scenariosWithRole[Math.floor(Math.random() * scenariosWithRole.length)];
+    const roleDef = scenario.roles[spot.role as Position];
 
-    const roleDef = scenario.roles[spot.role];
-    const correctAnswer =
-      spot.questionType === 'primary' ? roleDef.primaryIntent : roleDef.fielderAction;
+    // Decide question type based on weak spot
+    let questionType: QuestionType = spot.questionType;
+    let correctAnswer: PrimaryIntent | FielderAction;
 
-    if (!correctAnswer) {
-      continue; // Skip if fielderAction not available
+    if (questionType === 'primary') {
+      correctAnswer = spot.intent as PrimaryIntent;
+    } else {
+      // If weak spot is fielderAction, use primaryIntent as correct answer
+      correctAnswer = roleDef.primaryIntent;
     }
 
     prompts.push({
       scenarioId: scenario.id,
-      role: spot.role,
-      questionType: spot.questionType,
+      role: spot.role as Position,
+      questionType,
       correctAnswer,
       options: [],
       correctIndex: 0,
@@ -231,7 +287,7 @@ function generateWeakSpotsPrompts(scenario: Scenario): Prompt[] {
   // Fill remaining slots with regular generation if needed
   if (prompts.length < PROMPTS_PER_ROUND) {
     const remaining = PROMPTS_PER_ROUND - prompts.length;
-    const regularPrompts = generateWholeFieldPrompts(scenario);
+    const regularPrompts = generateWholeFieldPrompts(allScenarios);
     prompts.push(...regularPrompts.slice(0, remaining));
   }
 

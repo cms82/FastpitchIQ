@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Scenario, GameMode, GameState, AnswerOption } from '../types';
 import { generatePrompts } from '../utils/promptGenerator';
 import { Position } from '../types';
@@ -13,7 +13,7 @@ import {
 const TIMER_DURATION = 10000; // 10 seconds
 
 export function useGameState(
-  scenario: Scenario | null,
+  allScenarios: Scenario[],
   mode: GameMode,
   practiceWeakSpots: boolean = false,
   learningMode: boolean = false,
@@ -21,8 +21,20 @@ export function useGameState(
 ) {
   // CRITICAL: All hooks must be called unconditionally before any early returns
   // This ensures hooks are always called in the same order
+  
+  // Create a memoized map of scenario ID to scenario for quick lookup
+  // This prevents infinite loops by ensuring the map reference is stable
+  const scenariosMap = useMemo(() => {
+    const map = new Map<string, Scenario>();
+    allScenarios.forEach(s => map.set(s.id, s));
+    return map;
+  }, [allScenarios]);
+  
+  // Use first scenario for currentScenario (for backwards compatibility with GameState type)
+  const firstScenario = allScenarios.length > 0 ? allScenarios[0] : null;
+  
   const [gameState, setGameState] = useState<GameState>({
-    currentScenario: scenario,
+    currentScenario: firstScenario,
     prompts: [],
     currentPromptIndex: 0,
     selectedAnswer: null,
@@ -44,15 +56,15 @@ export function useGameState(
 
   // Initialize prompts
   useEffect(() => {
-    // Don't initialize if scenario is null
-    if (!scenario) {
+    // Don't initialize if no scenarios
+    if (allScenarios.length === 0) {
       return;
     }
     
     try {
       const position = mode === 'my_positions' && selectedPosition ? (selectedPosition as Position) : null;
       
-      console.log('useGameState: Initializing prompts', { mode, selectedPosition, position });
+      console.log('useGameState: Initializing prompts', { mode, selectedPosition, position, totalScenarios: allScenarios.length });
       
       // Validate position for my_positions mode
       if (mode === 'my_positions' && !position) {
@@ -60,26 +72,32 @@ export function useGameState(
         return;
       }
       
+      // Generate prompts from multiple scenarios (will mix scenarios within the round)
       const prompts = generatePrompts(
-        scenario,
+        allScenarios,
         mode,
         position,
         practiceWeakSpots
       );
 
-      console.log('Generated prompts:', prompts.length, 'scenario:', scenario.id, 'roles:', Object.keys(scenario.roles));
+      console.log('Generated prompts:', prompts.length, 'from', new Set(prompts.map(p => p.scenarioId)).size, 'different scenarios');
 
-      // Generate answers for all prompts
+      // Generate answers for all prompts - each prompt may come from a different scenario
       let promptsWithAnswers;
       try {
         console.log('[useGameState] About to generate answers, roundState:', roundState);
         promptsWithAnswers = prompts.map((p, index) => {
           try {
-            console.log(`[useGameState] Generating answers for prompt ${index}:`, p.role, p.questionType, 'role exists:', !!scenario.roles[p.role]);
-            if (!scenario.roles[p.role]) {
-              throw new Error(`Role ${p.role} not found in scenario ${scenario.id}`);
+            // Look up the scenario for this prompt
+            const promptScenario = scenariosMap.get(p.scenarioId);
+            if (!promptScenario) {
+              throw new Error(`Scenario ${p.scenarioId} not found in scenarios map`);
             }
-            const result = generateAnswers(p, scenario, roundState);
+            console.log(`[useGameState] Generating answers for prompt ${index}:`, p.role, p.questionType, 'scenario:', p.scenarioId, 'role exists:', !!promptScenario.roles[p.role]);
+            if (!promptScenario.roles[p.role]) {
+              throw new Error(`Role ${p.role} not found in scenario ${p.scenarioId}`);
+            }
+            const result = generateAnswers(p, promptScenario, roundState);
             console.log(`[useGameState] Generated answers for prompt ${index}:`, result.options.length, 'options');
             return result;
           } catch (error) {
@@ -116,10 +134,10 @@ export function useGameState(
         currentPromptIndex: 0,
       }));
     }
-  }, [scenario, mode, practiceWeakSpots, learningMode, selectedPosition]);
+  }, [allScenarios, mode, practiceWeakSpots, learningMode, selectedPosition, scenariosMap]);
 
   const handleTimeout = useCallback(() => {
-    if (learningMode || !scenario) return; // No timeout in learning mode or if scenario is null
+    if (learningMode || allScenarios.length === 0) return; // No timeout in learning mode or if no scenarios
     setGameState((prev) => {
       const currentPrompt = prev.prompts[prev.currentPromptIndex];
       if (!currentPrompt) return prev;
@@ -143,7 +161,7 @@ export function useGameState(
 
       // Update stats (timeout counts as incorrect) - timeouts only happen in timed mode
       updatePositionStats(currentPrompt.role, false, timeMs, false);
-      updateScenarioStats(scenario.id, false, false);
+      updateScenarioStats(currentPrompt.scenarioId, false, false);
       updateOverallStats(false, currentStreak, false);
       setCurrentStreak(0);
       updateWeakSpots(
@@ -163,7 +181,7 @@ export function useGameState(
         roundStats: newStats,
       };
     });
-  }, [scenario, currentStreak, learningMode, promptStartTime]);
+  }, [allScenarios, currentStreak, learningMode, promptStartTime]);
 
   // Timer effect
   useEffect(() => {
@@ -186,7 +204,7 @@ export function useGameState(
 
   const handleAnswer = useCallback(
     (option: AnswerOption, index: number) => {
-      if (showFeedback || !scenario) return;
+      if (showFeedback || allScenarios.length === 0) return;
 
       const currentPrompt = gameState.prompts[gameState.currentPromptIndex];
       if (!currentPrompt) return;
@@ -212,7 +230,7 @@ export function useGameState(
 
       // Update stats
       updatePositionStats(currentPrompt.role, correct, timeMs, learningMode);
-      updateScenarioStats(scenario.id, correct, learningMode);
+      updateScenarioStats(currentPrompt.scenarioId, correct, learningMode);
       if (correct) {
         const newStreak = currentStreak + 1;
         setCurrentStreak(newStreak);
@@ -238,7 +256,7 @@ export function useGameState(
 
       setShowFeedback(true);
     },
-    [gameState, scenario, currentStreak, showFeedback, learningMode, promptStartTime]
+    [gameState, allScenarios, currentStreak, showFeedback, learningMode, promptStartTime]
   );
 
   const advanceToNext = useCallback(() => {
@@ -270,9 +288,9 @@ export function useGameState(
     }
   }, [currentPrompt]);
 
-  // Handle null scenario by returning default state
+  // Handle empty scenarios by returning default state
   // But all hooks have already been called above, so this is safe
-  if (!scenario) {
+  if (allScenarios.length === 0) {
     return {
       gameState: {
         currentScenario: null as any,

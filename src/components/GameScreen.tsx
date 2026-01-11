@@ -1,6 +1,6 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useGameState } from '../hooks/useGameState';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Field from './Field';
 import AnswerButtons from './AnswerButtons';
 import FeedbackOverlay from './FeedbackOverlay';
@@ -28,30 +28,31 @@ export default function GameScreen() {
     console.log('[GameScreen] useEffect - Mode:', mode, 'Position:', selectedPosition, 'Learning:', learningMode);
   }, [mode, selectedPosition, learningMode]);
   
-  const [scenario, setScenario] = useState<Scenario | null>(null);
+  const [allScenarios, setAllScenarios] = useState<Scenario[]>([]);
   const [scenarioLoading, setScenarioLoading] = useState(true);
 
-  // Load scenarios from KV only
+  // Load all scenarios from KV - will be mixed within each round
   useEffect(() => {
-    const loadScenario = async () => {
+    const loadScenarios = async () => {
       try {
-        const { loadScenariosAsync, getRandomScenario } = await import('../utils/scenarioEngine');
-        const allScenarios = await loadScenariosAsync(); // Load from KV only
-        if (allScenarios.length === 0) {
+        const { loadScenariosAsync } = await import('../utils/scenarioEngine');
+        // Force reload to ensure we get fresh scenarios from KV (in case new scenarios were added)
+        const scenarios = await loadScenariosAsync(true); // Force reload from KV
+        if (scenarios.length === 0) {
           console.error('No scenarios found in KV.');
-          setScenario(null);
+          setAllScenarios([]);
           return;
         }
-        const randomScenario = getRandomScenario(allScenarios); // Pass scenarios array
-        setScenario(randomScenario);
+        console.log('[GameScreen] Loaded', scenarios.length, 'scenarios:', scenarios.map(s => s.id));
+        setAllScenarios(scenarios);
       } catch (error) {
-        console.error('Failed to load scenario:', error);
-        setScenario(null);
+        console.error('Failed to load scenarios:', error);
+        setAllScenarios([]);
       } finally {
         setScenarioLoading(false);
       }
     };
-    loadScenario();
+    loadScenarios();
   }, []);
   
   // Validate routing and redirect if needed (using useEffect to avoid render-time navigation)
@@ -112,9 +113,9 @@ export default function GameScreen() {
   }, [mode, navigate]);
 
   // IMPORTANT: All hooks must be called unconditionally before any early returns
-  // Call useGameState even if scenario is null (it will handle null scenario)
+  // Call useGameState even if allScenarios is empty (it will handle empty scenarios)
   const { gameState, currentPrompt, showFeedback, roundComplete, handleAnswer, advanceToNext } =
-    useGameState(scenario, mode || 'whole_field', practiceWeakSpots, learningMode, selectedPosition);
+    useGameState(allScenarios, mode || 'whole_field', practiceWeakSpots, learningMode, selectedPosition);
 
   // Debug logging for game state - log when gameState changes
   // MUST be called before any early returns
@@ -164,6 +165,14 @@ export default function GameScreen() {
   }, [roundComplete, gameState.roundStats, learningMode, mode]);
 
   // Show loading while scenario is being loaded
+  // CRITICAL: All hooks must be called before any early returns
+  // Memoize the scenarios map here to ensure hooks are always called in the same order
+  const scenariosMap = useMemo(() => {
+    const map = new Map<string, Scenario>();
+    allScenarios.forEach(s => map.set(s.id, s));
+    return map;
+  }, [allScenarios]);
+
   if (scenarioLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -174,15 +183,17 @@ export default function GameScreen() {
     );
   }
 
-  if (!scenario) {
+  if (allScenarios.length === 0) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-muted-foreground">Failed to load game. Please refresh the page.</p>
+        <div className="text-center space-y-4">
+          <p className="text-destructive">Failed to load game. Please refresh the page.</p>
+          <p className="text-sm text-muted-foreground">No scenarios found in KV.</p>
         </div>
       </div>
     );
   }
+
 
   // Validate mode - but be lenient during initial load
   if (!mode) {
@@ -339,7 +350,21 @@ export default function GameScreen() {
     );
   }
 
-  const roleDef = scenario.roles[currentPrompt.role];
+  // Get the scenario for the current prompt (each prompt can come from a different scenario)
+  // scenariosMap is already memoized above (before early returns)
+  const currentScenario = scenariosMap.get(currentPrompt.scenarioId);
+  
+  if (!currentScenario) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive">Error: Scenario not found for current prompt.</p>
+        </div>
+      </div>
+    );
+  }
+  
+  const roleDef = currentScenario.roles[currentPrompt.role];
   const currentPromptIndex = gameState.currentPromptIndex;
   const totalPrompts = gameState.prompts.length;
   const progress = `${currentPromptIndex + 1}/${totalPrompts}`;
@@ -355,7 +380,7 @@ export default function GameScreen() {
         
         {/* Situation Header */}
         <SituationHeader
-          scenario={scenario}
+          scenario={currentScenario}
           mode={mode}
           learningMode={learningMode}
           role={currentPrompt.role}
@@ -368,7 +393,7 @@ export default function GameScreen() {
 
         {/* Field Card */}
         <Field
-          scenario={scenario}
+          scenario={currentScenario}
           highlightedRole={currentPrompt.role}
           showFeedback={showFeedback ? { role: currentPrompt.role, target: roleDef.target } : null}
         />
@@ -394,7 +419,7 @@ export default function GameScreen() {
       {showFeedback && (
         <FeedbackOverlay
           prompt={currentPrompt}
-          scenario={scenario}
+          scenario={currentScenario}
           correct={
             gameState.selectedAnswer
               ? currentPrompt.options.indexOf(gameState.selectedAnswer) === currentPrompt.correctIndex
