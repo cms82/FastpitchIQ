@@ -80,6 +80,7 @@ export function loadScenarios(): Scenario[] {
   }
 
   try {
+    // Always use static JSON for now - KV scenarios will be merged in later if needed
     const scenarios = scenariosData as Scenario[];
     const validated: Scenario[] = [];
 
@@ -111,6 +112,12 @@ export function loadScenarios(): Scenario[] {
       throw new Error('Failed to load scenarios');
     }
   }
+}
+
+// Export function to reload scenarios (useful after admin edits)
+export function reloadScenarios(): void {
+  loadedScenarios = null;
+  loadScenarios();
 }
 
 export function getRandomScenario(): Scenario {

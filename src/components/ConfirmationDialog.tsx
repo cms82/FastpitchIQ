@@ -8,6 +8,7 @@ interface ConfirmationDialogProps {
   cancelText?: string;
   onConfirm: () => void;
   onCancel: () => void;
+  isDestructive?: boolean;
 }
 
 export default function ConfirmationDialog({
@@ -18,6 +19,7 @@ export default function ConfirmationDialog({
   cancelText = 'Cancel',
   onConfirm,
   onCancel,
+  isDestructive = true,
 }: ConfirmationDialogProps) {
   if (!isOpen) return null;
 
@@ -40,7 +42,11 @@ export default function ConfirmationDialog({
             {cancelText}
           </button>
           <button
-            className="flex-1 py-3 rounded-xl bg-destructive text-destructive-foreground font-medium transition-all active:scale-[0.98]"
+            className={`flex-1 py-3 rounded-xl font-medium transition-all active:scale-[0.98] ${
+              isDestructive
+                ? 'bg-destructive text-destructive-foreground'
+                : 'bg-primary text-primary-foreground'
+            }`}
             onClick={onConfirm}
           >
             {confirmText}

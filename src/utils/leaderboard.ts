@@ -308,3 +308,38 @@ export async function fetchLeaderboard(mode: LeaderboardMode = 'all_positions'):
     }));
   }
 }
+
+// Clear player stats from KV
+export async function clearPlayerStats(playerId: number): Promise<void> {
+  const API_BASE_URL = '';
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/leaderboard/${playerId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = 'Failed to clear player stats';
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.error || errorMessage;
+      } catch {
+        if (response.status === 404) {
+          errorMessage = 'API endpoint not found. Make sure you are using Cloudflare Pages Functions (deployed or via wrangler pages dev)';
+        } else {
+          errorMessage = `Failed to clear player stats (${response.status})`;
+        }
+      }
+      throw new Error(errorMessage);
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to clear player stats');
+  }
+}
