@@ -10,6 +10,9 @@ coverage/
 dist/
 build/
 
+# Wrangler
+.wrangler/
+
 # Misc
 .DS_Store
 .env
