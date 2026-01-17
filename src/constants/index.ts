@@ -34,12 +34,16 @@ export const POSITIONS: Position[] = ['P', 'C', '1B', '2B', 'SS', '3B', 'LF', 'C
 // Ball Zones
 export type BallZone =
   | 'LF'
+  | 'LF_CORNER'
   | 'LF_LINE'
   | 'LF_GAP'
+  | 'LCF'
   | 'CF'
+  | 'RCF'
   | 'RF_GAP'
   | 'RF'
   | 'RF_LINE'
+  | 'INFIELD'
   | 'INFIELD_LEFT'
   | 'INFIELD_RIGHT';
 
@@ -47,12 +51,16 @@ export type BallZone =
 // Coordinates are normalized 0-1, will be scaled to viewBox
 export const ballZoneCoordinates: Record<BallZone, { x: number; y: number }> = {
   LF: { x: 0.2, y: 0.7 },
+  LF_CORNER: { x: 0.08, y: 0.75 },
   LF_LINE: { x: 0.1, y: 0.8 },
   LF_GAP: { x: 0.3, y: 0.65 },
+  LCF: { x: 0.4, y: 0.62 },
   CF: { x: 0.5, y: 0.6 },
+  RCF: { x: 0.6, y: 0.62 },
   RF_GAP: { x: 0.7, y: 0.65 },
   RF: { x: 0.8, y: 0.7 },
   RF_LINE: { x: 0.9, y: 0.8 },
+  INFIELD: { x: 0.5, y: 0.55 },
   INFIELD_LEFT: { x: 0.3, y: 0.5 },
   INFIELD_RIGHT: { x: 0.7, y: 0.5 },
 };

@@ -52,7 +52,7 @@ export interface PromptPlan {
 export interface Scenario {
   id: string;
   title: string;
-  category: 'cut_relay' | 'bunt' | 'other';
+  category: 'cut_relay' | 'bunt' | 'bunt_defense' | 'other';
   situation: Situation;
   roles: Record<Position, RoleDefinition>;
   roleGroups: RoleGroups;

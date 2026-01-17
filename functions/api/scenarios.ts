@@ -45,15 +45,18 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
     }
 
     // Fetch all scenarios
+    const scenarioValues = await Promise.all(
+      scenarioIds.map((id) => env.LEADERBOARD_KV.get(`scenario:${id}`))
+    );
+
     const scenarios: Scenario[] = [];
-    for (const id of scenarioIds) {
-      const key = `scenario:${id}`;
-      const value = await env.LEADERBOARD_KV.get(key);
+    for (let i = 0; i < scenarioIds.length; i += 1) {
+      const value = scenarioValues[i];
       if (value) {
         try {
           scenarios.push(JSON.parse(value));
         } catch (e) {
-          console.error(`Failed to parse scenario ${id}:`, e);
+          console.error(`Failed to parse scenario ${scenarioIds[i]}:`, e);
         }
       }
     }

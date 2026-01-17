@@ -20,7 +20,7 @@ export async function fetchScenarios(): Promise<Scenario[]> {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     const response = await fetch(`${API_BASE_URL}/api/scenarios`, {
       method: 'GET',
@@ -58,7 +58,7 @@ export async function fetchScenarioById(id: string): Promise<Scenario | null> {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     const response = await fetch(`${API_BASE_URL}/api/scenarios/${id}`, {
       method: 'GET',
@@ -91,7 +91,7 @@ export async function createScenario(scenario: Scenario): Promise<boolean> {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     const response = await fetch(`${API_BASE_URL}/api/scenarios`, {
       method: 'POST',
@@ -124,7 +124,7 @@ export async function updateScenario(scenario: Scenario): Promise<boolean> {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     const response = await fetch(`${API_BASE_URL}/api/scenarios/${scenario.id}`, {
       method: 'PUT',
@@ -173,7 +173,7 @@ export async function deleteScenario(id: string): Promise<boolean> {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     const response = await fetch(`${API_BASE_URL}/api/scenarios/${id}`, {
       method: 'DELETE',

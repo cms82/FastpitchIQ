@@ -10,7 +10,7 @@ import {
   updateWeakSpots,
 } from '../utils/localStorage';
 
-const TIMER_DURATION = 10000; // 10 seconds
+const TIMER_DURATION = 15000; // 15 seconds
 
 export function useGameState(
   allScenarios: Scenario[],

@@ -27,7 +27,7 @@ const FIELDER_ACTIONS: FielderAction[] = [
 interface ScenarioFormData {
   id: string;
   title: string;
-  category: 'cut_relay' | 'bunt' | 'other';
+  category: 'cut_relay' | 'bunt' | 'bunt_defense' | 'other';
   situation: {
     runners: { on1: boolean; on2: boolean; on3: boolean };
     ballZone: BallZone;

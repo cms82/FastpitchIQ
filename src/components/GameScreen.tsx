@@ -7,18 +7,25 @@ import FeedbackOverlay from './FeedbackOverlay';
 import SituationHeader from './SituationHeader';
 import PlayerDisplay from './PlayerDisplay';
 import { GameMode, Scenario } from '../types';
+import { POSITIONS } from '../constants';
 import { Trophy, Clock, AlertTriangle } from 'lucide-react';
 import { getPlayerId, getOverallStats } from '../utils/localStorage';
 import { syncStatsToLeaderboard } from '../utils/leaderboard';
 
 export default function GameScreen() {
   const { mode } = useParams<{ mode: GameMode }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const practiceWeakSpots = searchParams.get('weakSpots') === 'true';
   const learningMode = searchParams.get('learning') === 'true';
+  const playParam = searchParams.get('play');
+  const playNumber = playParam ? Number.parseInt(playParam, 10) : null;
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const isTestingPlay = isLocalhost && !!playNumber && !Number.isNaN(playNumber);
+  const effectiveLearningMode = learningMode || isTestingPlay;
   const selectedPositionRaw = searchParams.get('position');
   const selectedPosition = selectedPositionRaw ? decodeURIComponent(selectedPositionRaw) : null;
+  const effectivePosition = selectedPosition || (isLocalhost && mode === 'my_positions' ? 'RF' : null);
 
   // Debug logging - log immediately on render
   console.log('[GameScreen] Component rendering - Mode:', mode, 'URL:', window.location.href, 'Position:', selectedPosition, 'Learning:', learningMode, 'SearchParams:', Array.from(searchParams.entries()));
@@ -30,6 +37,16 @@ export default function GameScreen() {
   
   const [allScenarios, setAllScenarios] = useState<Scenario[]>([]);
   const [scenarioLoading, setScenarioLoading] = useState(true);
+  const scenariosForGame = useMemo(() => {
+    if (!playNumber || Number.isNaN(playNumber)) {
+      return allScenarios;
+    }
+    const index = playNumber - 1;
+    if (index < 0 || index >= allScenarios.length) {
+      return allScenarios;
+    }
+    return [allScenarios[index]];
+  }, [allScenarios, playNumber]);
 
   // Load all scenarios from KV - will be mixed within each round
   useEffect(() => {
@@ -54,6 +71,13 @@ export default function GameScreen() {
     };
     loadScenarios();
   }, []);
+
+  useEffect(() => {
+    if (!isLocalhost || mode !== 'my_positions' || selectedPosition) return;
+    const next = new URLSearchParams(searchParams);
+    next.set('position', 'RF');
+    setSearchParams(next, { replace: true });
+  }, [isLocalhost, mode, selectedPosition, searchParams, setSearchParams]);
   
   // Validate routing and redirect if needed (using useEffect to avoid render-time navigation)
   useEffect(() => {
@@ -115,7 +139,7 @@ export default function GameScreen() {
   // IMPORTANT: All hooks must be called unconditionally before any early returns
   // Call useGameState even if allScenarios is empty (it will handle empty scenarios)
   const { gameState, currentPrompt, showFeedback, roundComplete, handleAnswer, advanceToNext } =
-    useGameState(allScenarios, mode || 'whole_field', practiceWeakSpots, learningMode, selectedPosition);
+    useGameState(scenariosForGame, mode || 'whole_field', practiceWeakSpots, effectiveLearningMode, effectivePosition);
 
   // Debug logging for game state - log when gameState changes
   // MUST be called before any early returns
@@ -162,16 +186,16 @@ export default function GameScreen() {
         });
       }
     }
-  }, [roundComplete, gameState.roundStats, learningMode, mode]);
+  }, [roundComplete, gameState.roundStats, effectiveLearningMode, mode]);
 
   // Show loading while scenario is being loaded
   // CRITICAL: All hooks must be called before any early returns
   // Memoize the scenarios map here to ensure hooks are always called in the same order
   const scenariosMap = useMemo(() => {
     const map = new Map<string, Scenario>();
-    allScenarios.forEach(s => map.set(s.id, s));
+    scenariosForGame.forEach(s => map.set(s.id, s));
     return map;
-  }, [allScenarios]);
+  }, [scenariosForGame]);
 
   if (scenarioLoading) {
     return (
@@ -378,14 +402,79 @@ export default function GameScreen() {
           <PlayerDisplay />
         </div>
         
+        {/* Test Play Selector */}
+        {isLocalhost && (
+          <div className="flex items-center justify-end gap-3">
+            <div className="flex items-center">
+              <label className="text-xs text-muted-foreground mr-2" htmlFor="play-select">
+                Play
+              </label>
+              <select
+                id="play-select"
+                value={playNumber && !Number.isNaN(playNumber) ? playNumber : 'all'}
+                onChange={(event) => {
+                  const next = new URLSearchParams(searchParams);
+                  const value = event.target.value;
+                  if (value === 'all') {
+                    next.delete('play');
+                  } else {
+                    next.set('play', value);
+                  }
+                  setSearchParams(next, { replace: true });
+                }}
+                className="px-2 py-1 rounded-md border border-border text-xs bg-white text-foreground"
+              >
+                <option value="all">All</option>
+                {Array.from({ length: 46 }, (_, index) => (
+                  <option key={`play-${index + 1}`} value={index + 1}>
+                    {index + 1}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center">
+              <label className="text-xs text-muted-foreground mr-2" htmlFor="position-select">
+                Position
+              </label>
+              <select
+                id="position-select"
+                value={selectedPosition || 'all'}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  const next = new URLSearchParams(searchParams);
+                  if (value === 'all') {
+                    next.delete('position');
+                  } else {
+                    next.set('position', value);
+                  }
+                  if (mode !== 'my_positions' && value !== 'all') {
+                    navigate(`/game/my_positions?${next.toString()}`);
+                    return;
+                  }
+                  setSearchParams(next, { replace: true });
+                }}
+                className="px-2 py-1 rounded-md border border-border text-xs bg-white text-foreground"
+              >
+                <option value="all">All</option>
+                {POSITIONS.map((pos) => (
+                  <option key={`pos-${pos}`} value={pos}>
+                    {pos}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
         {/* Situation Header */}
         <SituationHeader
           scenario={currentScenario}
           mode={mode}
-          learningMode={learningMode}
+          learningMode={effectiveLearningMode}
           role={currentPrompt.role}
           questionType={currentPrompt.questionType}
           progress={progress}
+          playNumber={playNumber}
           timerRemaining={gameState.timerRemaining}
           timerTotal={10000}
           showTimer={!learningMode}

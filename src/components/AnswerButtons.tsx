@@ -28,6 +28,14 @@ export default function AnswerButtons({
             const isCorrect = index === correctIndex;
             const isWrong = isSelected && !isCorrect;
             const showCorrectAnswer = disabled && showCorrect;
+            const fallbackLabels: Record<string, string> = {
+              ALIGN: 'Cover Mound',
+              BREAK: 'Move In',
+              MOVE: 'Move Up Line',
+              ROTATE: 'Rotate to 1st',
+              TRAIL: 'Trail Runner',
+            };
+            const label = intentLabels[option] ?? fallbackLabels[String(option)] ?? (option ? String(option) : 'Unknown');
 
             return (
               <button
@@ -49,7 +57,7 @@ export default function AnswerButtons({
                   showCorrectAnswer && isWrong && "bg-destructive/20 border-destructive text-destructive ring-0",
                 )}
               >
-                {intentLabels[option]}
+                {label}
               </button>
             );
           })}

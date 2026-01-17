@@ -12,6 +12,7 @@ interface SituationHeaderProps {
   timerRemaining?: number;
   timerTotal?: number;
   showTimer?: boolean;
+  playNumber?: number | null;
 }
 
 export default function SituationHeader({
@@ -24,8 +25,15 @@ export default function SituationHeader({
   timerRemaining,
   timerTotal,
   showTimer = true,
+  playNumber,
 }: SituationHeaderProps) {
-  const situationText = formatSituation(scenario);
+  const inferredPlayNumber = (() => {
+    if (typeof playNumber === 'number' && !Number.isNaN(playNumber)) return playNumber;
+    const match = /^p(\d+)[-_]/i.exec(scenario.id);
+    return match ? Number.parseInt(match[1], 10) : null;
+  })();
+  const baseTitle = scenario.title?.trim() || formatSituation(scenario);
+  const situationText = inferredPlayNumber ? `${inferredPlayNumber}. ${baseTitle}` : baseTitle;
   const modeLabel = mode === 'my_positions' ? 'One Position' : 'All Positions';
   const progressPercent = timerRemaining && timerTotal ? (timerRemaining / timerTotal) * 100 : 100;
 
