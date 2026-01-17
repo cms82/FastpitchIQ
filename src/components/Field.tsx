@@ -94,6 +94,12 @@ export default function Field({ scenario, highlightedRole, showFeedback }: Field
     if (category === 'cut_relay' && ballZone === 'RCF' && (title.includes('double') || title.includes('triple'))) {
       playType = 'cut_relay_RCF_double';
     }
+    if (category === 'cut_relay' && ballZone === 'RCF' && title.includes('fence')) {
+      playType = 'cut_relay_RCF_fence';
+    }
+    if (category === 'cut_relay' && ballZone === 'LCF' && (title.includes('double') || title.includes('triple'))) {
+      playType = 'cut_relay_LCF_double';
+    }
     
     // Ball position mapping for different play types
     // Each entry contains the final position (base + offset) for the ball marker
@@ -121,8 +127,9 @@ export default function Field({ scenario, highlightedRole, showFeedback }: Field
       'cut_relay_RF_LINE': { x: 481.7, y: 212.5 },
       'cut_relay_RF_double_line': { x: 443.5, y: 251.8 },
       'cut_relay_LF_double_line': { x: 88.8, y: 256.4 },
-      'cut_relay_RCF': { x: 310.6, y: 203.2 },
+      'cut_relay_RCF': { x: 314.1, y: 214.8 },
       'cut_relay_RCF_double': { x: 346.5, y: 146.6 },
+      'cut_relay_RCF_fence': { x: 340.7, y: 105.0 },
       'cut_relay_LF_GAP': { x: 215.6, y: 175.6 },
       'cut_relay_RF_GAP': { x: 345.6, y: 175.6 },
       'cut_relay_INFIELD_LEFT': { x: 235.6, y: 315.6 },
@@ -130,6 +137,9 @@ export default function Field({ scenario, highlightedRole, showFeedback }: Field
       'defensive_situation_LF': { x: 166.2, y: 228.6 },
       'defensive_situation_CF': { x: 264.4, y: 169.7 },
       'defensive_situation_RF': { x: 366.1, y: 218.2 },
+      'cut_relay_LCF': { x: 178.9, y: 107.3 },
+      'cut_relay_LCF_double': { x: 203.2, y: 169.7 },
+      'cut_relay_LF_CORNER': { x: 72.6, y: 237.9 },
     };
     
     // Get the position for this play type, or use a default
