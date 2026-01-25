@@ -16,5 +16,4 @@ export const PLAYERS: Player[] = [
   { id: 9, name: 'Jamie', number: 29 },
   { id: 10, name: 'Macie', number: 43 },
   { id: 11, name: 'Zoë', number: 44 },
-  { id: 12, name: 'Demo', number: 99 },
 ];
