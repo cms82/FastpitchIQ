@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { PLAYERS, Player } from '../config/players';
+import { useEffect, useState } from 'react';
+import { Player } from '../config/players';
 import { setPlayerId } from '../utils/localStorage';
+import { fetchPlayers } from '../utils/players';
 import { cn } from '../lib/utils';
 import { X } from 'lucide-react';
 
@@ -10,7 +11,36 @@ interface PlayerSelectModalProps {
 }
 
 export default function PlayerSelectModal({ onSelect, onClose }: PlayerSelectModalProps) {
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPlayers = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const kvPlayers = await fetchPlayers();
+        if (!isMounted) return;
+        setPlayers(kvPlayers);
+      } catch (err) {
+        if (!isMounted) return;
+        console.error('Failed to load players for selection modal:', err);
+        setError('Failed to load players');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadPlayers();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleConfirm = () => {
     if (selectedPlayer) {
@@ -49,7 +79,16 @@ export default function PlayerSelectModal({ onSelect, onClose }: PlayerSelectMod
 
         {/* Player Grid */}
         <div className="grid grid-cols-2 gap-3 mb-6 max-h-[400px] overflow-y-auto">
-          {PLAYERS.map((player) => {
+          {loading && (
+            <p className="col-span-2 text-center text-sm text-muted-foreground">Loading players...</p>
+          )}
+          {!loading && error && (
+            <p className="col-span-2 text-center text-sm text-destructive">{error}</p>
+          )}
+          {!loading && !error && players.length === 0 && (
+            <p className="col-span-2 text-center text-sm text-muted-foreground">No players found.</p>
+          )}
+          {!loading && !error && players.map((player) => {
             const isSelected = selectedPlayer?.id === player.id;
             return (
               <button
@@ -83,7 +122,7 @@ export default function PlayerSelectModal({ onSelect, onClose }: PlayerSelectMod
         {/* Confirm Button */}
         <button
           onClick={handleConfirm}
-          disabled={!selectedPlayer}
+          disabled={!selectedPlayer || loading || players.length === 0}
           className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Continue

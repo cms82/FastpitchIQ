@@ -130,6 +130,8 @@ export default function AdminPlayerManager() {
     setError(null);
 
     try {
+      // Keep delete behavior aligned with UI copy: remove stats and player record.
+      await clearPlayerStats(selectedPlayer.id);
       await deletePlayer(selectedPlayer.id);
       await loadAllPlayers(); // Refresh list
       setShowDeleteConfirm(false);

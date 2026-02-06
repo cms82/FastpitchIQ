@@ -1,5 +1,6 @@
 interface Env {
   LEADERBOARD_KV: KVNamespace;
+  PLAYERS_KV: KVNamespace;
 }
 
 interface PlayerStats {
@@ -16,74 +17,81 @@ interface PlayerStats {
   };
 }
 
+interface Player {
+  id: number;
+  name: string;
+  number: number;
+}
 
-// Player configuration (hardcoded for simplicity in Worker)
-const PLAYERS: Array<{ id: number; name: string; number: number }> = [
-  { id: 1, name: 'Grace', number: 0 },      // Jersey 00
-  { id: 2, name: 'Madelyn', number: 0 },    // Jersey 0
-  { id: 3, name: 'Kennedy', number: 1 },
-  { id: 4, name: 'Carly', number: 4 },
-  { id: 5, name: 'Presley', number: 8 },
-  { id: 6, name: 'Brielle', number: 10 },
-  { id: 7, name: 'Kate', number: 15 },
-  { id: 8, name: 'Mikayla', number: 21 },
-  { id: 9, name: 'Jamie', number: 29 },
-  { id: 10, name: 'Macie', number: 43 },
-  { id: 11, name: 'Zoë', number: 44 },
-];
+async function fetchPlayersFromKv(env: Env): Promise<Player[]> {
+  const playerIdsString = await env.PLAYERS_KV.get('players:list');
+  const playerIds: number[] = playerIdsString ? JSON.parse(playerIdsString) : [];
+  const players: Player[] = [];
+
+  for (const id of playerIds) {
+    const playerJson = await env.PLAYERS_KV.get(`player:${id}`);
+    if (!playerJson) continue;
+
+    try {
+      const player: Player = JSON.parse(playerJson);
+      players.push(player);
+    } catch (e) {
+      console.error(`Failed to parse player:${id} from PLAYERS_KV`, e);
+    }
+  }
+
+  return players.sort((a, b) => a.id - b.id);
+}
 
 // GET /api/leaderboard - Fetch all player stats by mode
 export const onRequestGet = async (context: { request: Request; env: Env }) => {
   const { request, env } = context;
-  
+
   const url = new URL(request.url);
   const mode = url.searchParams.get('mode') || 'all_positions';
   const practiceMode = url.searchParams.get('practiceMode') || 'competition'; // Default to competition for backwards compatibility
-  
+
   try {
+    const players = await fetchPlayersFromKv(env);
     const allStats: PlayerStats[] = [];
-    
+
     // Fetch all player keys for the specified mode and practice mode
     // New format: player:{id}:{gameMode}:{practiceMode}
     // Also check old format for backwards compatibility: player:{id}:{gameMode} (implicitly competition)
-    for (let i = 1; i <= 11; i++) {
+    for (const player of players) {
       // Try new format first
-      const newKey = `player:${i}:${mode}:${practiceMode}`;
+      const newKey = `player:${player.id}:${mode}:${practiceMode}`;
       let value = await env.LEADERBOARD_KV.get(newKey);
-      
+
       // If not found and looking for competition, try old format for backwards compatibility
       if (!value && practiceMode === 'competition') {
-        const oldKey = `player:${i}:${mode}`;
+        const oldKey = `player:${player.id}:${mode}`;
         value = await env.LEADERBOARD_KV.get(oldKey);
       }
-      
+
       if (value) {
         try {
           allStats.push(JSON.parse(value));
         } catch (e) {
-          console.error(`Failed to parse player ${i} stats for mode ${mode}, practiceMode ${practiceMode}:`, e);
+          console.error(`Failed to parse player ${player.id} stats for mode ${mode}, practiceMode ${practiceMode}:`, e);
         }
       } else {
-        // If no stats exist, create entry with player info and zero stats
-        const player = PLAYERS.find(p => p.id === i);
-        if (player) {
-          allStats.push({
-            playerId: player.id,
-            name: player.name,
-            number: player.number,
-            stats: {
-              totalAttempts: 0,
-              totalCorrect: 0,
-              bestStreak: 0,
-              totalTime: 0,
-              totalRounds: 0,
-              lastUpdated: 0,
-            },
-          });
-        }
+        allStats.push({
+          playerId: player.id,
+          name: player.name,
+          number: player.number,
+          stats: {
+            totalAttempts: 0,
+            totalCorrect: 0,
+            bestStreak: 0,
+            totalTime: 0,
+            totalRounds: 0,
+            lastUpdated: 0,
+          },
+        });
       }
     }
-    
+
     return new Response(JSON.stringify(allStats), {
       headers: {
         'Content-Type': 'application/json',

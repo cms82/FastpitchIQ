@@ -1,5 +1,12 @@
 interface Env {
   LEADERBOARD_KV: KVNamespace;
+  PLAYERS_KV: KVNamespace;
+}
+
+interface Player {
+  id: number;
+  name: string;
+  number: number;
 }
 
 interface PlayerStats {
@@ -15,29 +22,26 @@ interface PlayerStats {
   };
 }
 
-// Player configuration (hardcoded for simplicity in Worker)
-const PLAYERS: Array<{ id: number; name: string; number: number }> = [
-  { id: 1, name: 'Grace', number: 0 },      // Jersey 00
-  { id: 2, name: 'Madelyn', number: 0 },    // Jersey 0
-  { id: 3, name: 'Kennedy', number: 1 },
-  { id: 4, name: 'Carly', number: 4 },
-  { id: 5, name: 'Presley', number: 8 },
-  { id: 6, name: 'Brielle', number: 10 },
-  { id: 7, name: 'Kate', number: 15 },
-  { id: 8, name: 'Mikayla', number: 21 },
-  { id: 9, name: 'Jamie', number: 29 },
-  { id: 10, name: 'Macie', number: 43 },
-  { id: 11, name: 'Zoë', number: 44 },
-];
+async function fetchPlayerById(env: Env, playerId: number): Promise<Player | null> {
+  const playerJson = await env.PLAYERS_KV.get(`player:${playerId}`);
+  if (!playerJson) return null;
+
+  try {
+    return JSON.parse(playerJson) as Player;
+  } catch (e) {
+    console.error(`Failed to parse player:${playerId} from PLAYERS_KV`, e);
+    return null;
+  }
+}
 
 // GET /api/leaderboard/:playerId - Fetch single player stats
 export const onRequestGet = async (context: { request: Request; env: Env; params: { playerId: string } }) => {
   const { env, params } = context;
-  
+
   try {
     const playerId = parseInt(params.playerId, 10);
-    
-    if (isNaN(playerId) || playerId < 1 || playerId > 11) {
+
+    if (isNaN(playerId) || playerId < 1) {
       return new Response(JSON.stringify({ error: 'Invalid player ID' }), {
         status: 400,
         headers: {
@@ -46,13 +50,13 @@ export const onRequestGet = async (context: { request: Request; env: Env; params
         },
       });
     }
-    
+
     const key = `player:${playerId}`;
     const value = await env.LEADERBOARD_KV.get(key);
-    
+
     if (!value) {
       // Return player info with zero stats if not found
-      const player = PLAYERS.find(p => p.id === playerId);
+      const player = await fetchPlayerById(env, playerId);
       if (!player) {
         return new Response(JSON.stringify({ error: 'Player not found' }), {
           status: 404,
@@ -62,7 +66,7 @@ export const onRequestGet = async (context: { request: Request; env: Env; params
           },
         });
       }
-      
+
       const defaultStats: PlayerStats = {
         playerId: player.id,
         name: player.name,
@@ -75,7 +79,7 @@ export const onRequestGet = async (context: { request: Request; env: Env; params
           lastUpdated: 0,
         },
       };
-      
+
       return new Response(JSON.stringify(defaultStats), {
         headers: {
           'Content-Type': 'application/json',
@@ -83,7 +87,7 @@ export const onRequestGet = async (context: { request: Request; env: Env; params
         },
       });
     }
-    
+
     return new Response(value, {
       headers: {
         'Content-Type': 'application/json',
@@ -105,11 +109,11 @@ export const onRequestGet = async (context: { request: Request; env: Env; params
 // DELETE /api/leaderboard/:playerId - Clear player stats
 export const onRequestDelete = async (context: { request: Request; env: Env; params: { playerId: string } }) => {
   const { env, params } = context;
-  
+
   try {
     const playerId = parseInt(params.playerId, 10);
-    
-    if (isNaN(playerId) || playerId < 1 || playerId > 11) {
+
+    if (isNaN(playerId) || playerId < 1) {
       return new Response(JSON.stringify({ error: 'Invalid player ID' }), {
         status: 400,
         headers: {
@@ -120,12 +124,20 @@ export const onRequestDelete = async (context: { request: Request; env: Env; par
         },
       });
     }
-    
-    const key = `player:${playerId}`;
-    
-    // Delete the player stats from KV
-    await env.LEADERBOARD_KV.delete(key);
-    
+
+    // Delete all known key variants for this player.
+    const keysToDelete = [
+      `player:${playerId}`,
+      `player:${playerId}:one_position`,
+      `player:${playerId}:all_positions`,
+      `player:${playerId}:one_position:practice`,
+      `player:${playerId}:one_position:competition`,
+      `player:${playerId}:all_positions:practice`,
+      `player:${playerId}:all_positions:competition`,
+    ];
+
+    await Promise.all(keysToDelete.map((key) => env.LEADERBOARD_KV.delete(key)));
+
     return new Response(JSON.stringify({ success: true, message: 'Player stats cleared' }), {
       headers: {
         'Content-Type': 'application/json',

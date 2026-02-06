@@ -1,5 +1,6 @@
 import { PlayerStats, RoundStats, LeaderboardMode } from '../types';
 import { PLAYERS } from '../config/players';
+import { fetchPlayers } from './players';
 
 // In production, Cloudflare Pages Functions are served from the same domain
 // In development, use the Cloudflare Pages Functions dev server (usually port 8788)
@@ -146,6 +147,9 @@ export async function fetchLeaderboard(mode: LeaderboardMode = 'all_positions'):
   }
 
   try {
+    const kvPlayers = await fetchPlayers();
+    const rosterPlayers = kvPlayers.length > 0 ? kvPlayers : PLAYERS;
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
@@ -163,7 +167,7 @@ export async function fetchLeaderboard(mode: LeaderboardMode = 'all_positions'):
     if (!response.ok) {
       console.error(`Failed to fetch leaderboard: ${response.status}`);
       // Return all players with zero stats as fallback
-      return PLAYERS.map((player) => ({
+      return rosterPlayers.map((player) => ({
         playerId: player.id,
         name: player.name,
         number: player.number,
@@ -183,7 +187,7 @@ export async function fetchLeaderboard(mode: LeaderboardMode = 'all_positions'):
     if (!contentType || !contentType.includes('application/json')) {
       console.warn('Invalid response type:', contentType);
       // Return all players with zero stats as fallback
-      return PLAYERS.map((player) => ({
+      return rosterPlayers.map((player) => ({
         playerId: player.id,
         name: player.name,
         number: player.number,
@@ -200,8 +204,8 @@ export async function fetchLeaderboard(mode: LeaderboardMode = 'all_positions'):
 
     const stats: PlayerStats[] = await response.json();
     
-    // Ensure all 11 players are present, add zero stats for missing ones
-    const allPlayers: PlayerStats[] = PLAYERS.map((player) => {
+    // Ensure all active roster players are present, add zero stats for missing ones
+    const allPlayers: PlayerStats[] = rosterPlayers.map((player) => {
       const existing = stats.find(s => s.playerId === player.id);
       if (existing) {
         // Ensure totalRounds exists (for backwards compatibility)
